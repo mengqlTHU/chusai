@@ -20,6 +20,7 @@ class CircuitFinder
   std::vector<NodeList> B;
   map<int, int> m;
   vector<int> nodes;
+  vector<vector<vector<int>>> resVect;
   int N;
   int circuitCount;
   int S;
@@ -28,9 +29,14 @@ class CircuitFinder
   bool circuit(int V);
   void output();
   int findMin();
+  static bool compareVector(vector<int> v1, vector<int> v2);
+  void sortVector();
+  void printVector(string filename);
 
 public:
-  CircuitFinder(){
+  CircuitFinder()
+      :resVect(5) //3,4,5,6,7
+  {
       N=0;
       circuitCount=0;
   }
@@ -71,17 +77,17 @@ void CircuitFinder::loadTestData(string filename)
         {
            m[accountIn] = vertexIndex++;
            nodes.push_back(accountIn);
-           AK.push_back(*(new NodeList()));
+           AK.push_back(NodeList());
            Blocked.push_back(false);
-           B.push_back(*(new NodeList()));
+           B.push_back(NodeList());
         }
         if (!m.count(accountOut))
         {
            m[accountOut] = vertexIndex++;
            nodes.push_back(accountOut);
-           AK.push_back(*(new NodeList()));
+           AK.push_back(NodeList());
            Blocked.push_back(false);
-           B.push_back(*(new NodeList()));
+           B.push_back(NodeList());
         }
 
         AK[m[accountOut] - 1].push_back(m[accountIn]);
@@ -137,21 +143,62 @@ int CircuitFinder::findMin()
     return idOfMin;
 }
 
+
+bool CircuitFinder::compareVector(vector<int> v1, vector<int> v2)
+{
+    for (int i=0;i<v1.size();i++)
+    {
+        if (v1[i]!=v2[i])
+            return v1[i]<v2[i];
+    }
+    return true;
+}
+
 void CircuitFinder::output()
 {
   int circuitLen = Stack.end() - Stack.begin();
   if (circuitLen<8 && circuitLen>2)
   {
+      resVect[circuitLen-3].push_back(vector<int>());
       int idOfMin = findMin();
-      std::cout << "circuit: ";
+//      std::cout << "circuit: ";
       for (int i=idOfMin;i<circuitLen+idOfMin;i++)
       {
           auto I = Stack.begin()+(i % circuitLen);
-          std::cout << nodes[*I-1] << " -> ";
+//          std::cout << nodes[*I-1] << " -> ";
+          resVect[circuitLen-3].back().push_back(nodes[*I-1]);
       }
-      std::cout << nodes[*(Stack.begin()+idOfMin)-1] << std::endl;
+//      std::cout << nodes[*(Stack.begin()+idOfMin)-1] << std::endl;
       circuitCount += 1;
   }
+}
+
+void CircuitFinder::sortVector()
+{
+    for (int i=0;i<5;i++)
+    {
+        if (resVect[i].size()>0)
+        {
+            sort(resVect[i].begin(),resVect[i].end(), compareVector);
+        }
+    }
+}
+
+void CircuitFinder::printVector(string filename)
+{
+    ofstream fout(filename);
+    fout << circuitCount << endl;
+    for (int i=0;i<5;i++)
+    {
+        for (int j=0;j<resVect[i].size();j++)
+        {
+            fout << resVect[i][j][0];
+            for (int k=1;k<i+3;k++)
+                fout << "," << resVect[i][j][k];
+            fout << endl;
+        }
+    }
+    fout.close();
 }
 
 void CircuitFinder::run()
@@ -167,7 +214,9 @@ void CircuitFinder::run()
     circuit(S);
     ++S;
   }
-  cout << circuitCount << endl;
+
+  sortVector();
+  printVector("../data/myresult.txt");
 }
 
 #endif // CIRCUITFINDER_H
