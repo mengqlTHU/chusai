@@ -8,8 +8,11 @@
 #include <fstream>
 #include <sstream>
 #include <map>
+#include <chrono>
 
 using namespace std;
+using namespace chrono;
+
 typedef std::list<int> NodeList;
 
 class CircuitFinder
@@ -24,14 +27,17 @@ class CircuitFinder
   int N;
   int circuitCount;
   int S;
+  time_point<system_clock, nanoseconds> start;
 
   void unblock(int U);
   bool circuit(int V);
   void output();
   int findMin();
   static bool compareVector(vector<int> v1, vector<int> v2);
+  void outputTime(string info);
   void sortVector();
   void printVector(string filename);
+  void printMap();
 
 public:
   CircuitFinder()
@@ -39,6 +45,7 @@ public:
   {
       N=0;
       circuitCount=0;
+      start = system_clock::now();
   }
 
   void run();
@@ -73,43 +80,57 @@ void CircuitFinder::loadTestData(string filename)
         accountOut = std::stod(cell);
         getline(lineStream, cell, ',');
         accountIn = std::stod(cell);
-        if (!m.count(accountIn))
-        {
-           m[accountIn] = vertexIndex++;
-           nodes.push_back(accountIn);
-           AK.push_back(NodeList());
-           Blocked.push_back(false);
-           B.push_back(NodeList());
-        }
         if (!m.count(accountOut))
         {
-           m[accountOut] = vertexIndex++;
-           nodes.push_back(accountOut);
-           AK.push_back(NodeList());
-           Blocked.push_back(false);
-           B.push_back(NodeList());
+            m[accountOut] = vertexIndex++;
+            nodes.push_back(accountOut);
+            AK.push_back(NodeList());
+            Blocked.push_back(false);
+            B.push_back(NodeList());
+        }
+
+        if (!m.count(accountIn))
+        {
+            m[accountIn] = vertexIndex++;
+            nodes.push_back(accountIn);
+            AK.push_back(NodeList());
+            Blocked.push_back(false);
+            B.push_back(NodeList());
         }
 
         AK[m[accountOut] - 1].push_back(m[accountIn]);
     }
     N = vertexIndex - 1;
+#ifdef mydebug
+    outputTime("Load Data");
+    printMap();
+#endif
 }
 
 
 bool CircuitFinder::circuit(int V)
 {
   bool F = false;
+
   Stack.push_back(V);
   Blocked[V - 1] = true;
 
-  for (int W : AK[V - 1]) {
-    if (W == S) {
-      output();
-      F = true;
-    } else if (W > S && !Blocked[W - 1]) {
-      F = circuit(W);
-    }
+  int circuitLen = Stack.end() - Stack.begin();
+  if (circuitLen < 8)
+  {
+      for (int W : AK[V - 1]) {
+          if (W == S) {
+              output();
+              F = true;
+          }
+          else if (W > S && !Blocked[W - 1]) {
+              if (circuit(W))
+                  F=true;
+          }
+      }
   }
+  else
+      F = true;
 
   if (F) {
     unblock(V);
@@ -152,6 +173,14 @@ bool CircuitFinder::compareVector(vector<int> v1, vector<int> v2)
             return v1[i]<v2[i];
     }
     return true;
+}
+
+void CircuitFinder::outputTime(string info)
+{
+    auto duration = duration_cast<microseconds>(system_clock::now() - start);
+    cout <<  info
+         << double(duration.count()) * microseconds::period::num / microseconds::period::den
+         << "Seconds" << endl;
 }
 
 void CircuitFinder::output()
@@ -201,6 +230,14 @@ void CircuitFinder::printVector(string filename)
     fout.close();
 }
 
+void CircuitFinder::printMap()
+{
+    ofstream fout("../data/map.txt");
+    for (int i = 0; i < N; i++)
+        fout << nodes[i] << endl;
+    fout.close();
+}
+
 void CircuitFinder::run()
 {
   Stack.clear();
@@ -213,10 +250,20 @@ void CircuitFinder::run()
     }
     circuit(S);
     ++S;
+
+#ifdef mydebug
+    outputTime("A S cycle");
+    cout << S << endl;
+#endif
   }
+
+#ifdef mydebug
+  printVector("../data/myresult_unsorted.txt");
+#endif
 
   sortVector();
   printVector("../data/myresult.txt");
+  outputTime("Finished");
 }
 
 #endif // CIRCUITFINDER_H
