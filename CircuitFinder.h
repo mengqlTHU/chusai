@@ -42,6 +42,7 @@ class CircuitFinder
   void printVector(string filename);
   void printMap();
   void strongComponent();
+  void removeNode(int s);
 
 public:
   CircuitFinder()
@@ -121,6 +122,16 @@ void CircuitFinder::strongComponent()
         }
     }
 
+}
+
+void CircuitFinder::removeNode(int s)
+{
+    for (int I = s + 1; I <= N; ++I)
+    {
+        auto IT = std::find(AK[I-1].begin(), AK[I-1].end(), s);
+        if (IT != AK[I - 1].end())
+            AK[I - 1].erase(IT);
+    }
 }
 
 void CircuitFinder::unblock(int U)
@@ -251,7 +262,7 @@ bool CircuitFinder::circuit(int V)
               output();
               F = true;
           }
-          else if (W > S && !Blocked[W - 1]) {
+          else if (!Blocked[W - 1]) {
               if (circuit(W))
                   F=true;
           }
@@ -378,6 +389,9 @@ void CircuitFinder::run()
     }
     circuit(S);
     //circuitIterate(S);
+
+    removeNode(S);
+
     ++S;
 
 #ifdef mydebug
