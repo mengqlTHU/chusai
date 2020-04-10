@@ -29,11 +29,9 @@ using namespace chrono;
 #include "Timers.hpp"
 #endif
 
-typedef std::list<int> NodeList;
-
 class CircuitFinder
 {
-  vector<NodeList> AK;
+  vector<vector<int>> AK;
   //vector<NodeList> subAK;
   vector<int> Stack;
   std::vector<bool> Blocked;
@@ -139,7 +137,7 @@ void CircuitFinder::strongComponent()
                     
                     for (int W : scc)
                     {
-                        for (NodeList::iterator iter = AK[W].begin(); iter != AK[W].end(); )
+                        for (vector<int>::iterator iter = AK[W].begin(); iter != AK[W].end(); )
                         {
                             if (scc.find(*iter) == scc.end())
                                 iter = AK[W].erase(iter); // advances iter
@@ -202,7 +200,7 @@ void CircuitFinder::loadTestData(string filename)
             intHash[accountOut] = vertexIndex++;
             // m[accountOut] = vertexIndex++;
             nodes.push_back(accountOut);
-            AK.push_back(NodeList());
+            AK.push_back(vector<int>());
             Blocked.push_back(false);
             B.push_back(vector<int>());
         }
@@ -213,7 +211,7 @@ void CircuitFinder::loadTestData(string filename)
             // m[accountIn] = vertexIndex++;
             intHash[accountIn] = vertexIndex++;
             nodes.push_back(accountIn);
-            AK.push_back(NodeList());
+            AK.push_back(vector<int>());
             Blocked.push_back(false);
             B.push_back(vector<int>());
         }

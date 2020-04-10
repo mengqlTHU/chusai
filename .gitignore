@@ -74,3 +74,5 @@ Thumbs.db
 sftp-config.json
 production.cpp
 
+.vscode
+
