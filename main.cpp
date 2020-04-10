@@ -5,7 +5,6 @@
 #include <iostream>
 #include <list>
 #include <vector>
-#include <queue>
 #include <fstream>
 #include <sstream>
 #include <map>
@@ -34,11 +33,13 @@ typedef std::list<int> NodeList;
 
 class CircuitFinder
 {
-  std::vector<NodeList> AK;
-  std::vector<int> Stack;
+  vector<NodeList> AK;
+  //vector<NodeList> subAK;
+  vector<int> Stack;
   std::vector<bool> Blocked;
-  std::vector<NodeList> B;
-  // map<int, int> m;
+  std::vector<bool> falseBlocked;
+  std::vector<vector<int>> B;
+//   map<int, int> m;
   vector<int> nodes;
   vector<vector<vector<int>>> resVect;
   int N;
@@ -48,7 +49,10 @@ class CircuitFinder
 
   void unblock(int U);
   bool circuit(int V);
-  void circuitIterate(int V);
+  //bool circuitSubGraph(int V);
+  //vector<NodeList> getSubGraph(set<int> s);
+
+  //void circuitIterate(int V);
   void output();
   int findMin();
   static bool compareVector(vector<int> v1, vector<int> v2);
@@ -57,7 +61,7 @@ class CircuitFinder
   void printVector(string filename);
   void printMap();
   void strongComponent();
-  void removeNode(int s);
+  void runInSubGraph(set<int> s);
 
 public:
   CircuitFinder()
@@ -70,95 +74,102 @@ public:
 
   void run();
   void loadTestData(string filename);
-  void loadTestData_lhb(string filename);
 };
+
 
 void CircuitFinder::strongComponent()
 {
     map<int, int> preOrder;
     map<int, int> lowLink;
     set<int> sccFound;
-    queue<int> sccQueue;
+    vector<int> sccQueue;
     int v;
     bool done;
     int i = 0;
     for (int node = 0; node < N; node++)
     {
-        queue<int> q;
-        if (!sccFound.count(node))
-            q.push(node);
+        vector<int> q;
+        if (sccFound.find(node)==sccFound.end())
+            q.push_back(node);
 
         while (!q.empty())
         {
             v = q.back();
-            if (!preOrder.count(v))
+            if (preOrder.find(v)==preOrder.end())
             {
                 i++;
                 preOrder[v] = i;
             }
-        }
-        done = true;
-        for (int w : AK[v])
-        {
-            if (!preOrder.count(w))
-            {  
-                q.push(w);
-                done = false;
-                break;
-            }
-        }
-        if (done)
-        {
-            lowLink[v] = preOrder[v];
+            done = true;
             for (int w : AK[v])
             {
-                if (!sccFound.count(w))
+                if (preOrder.find(w)==preOrder.end())
                 {
-                    if (preOrder[w] > preOrder[v])
-                        lowLink[v] = lowLink[v] < lowLink[w] ? lowLink[v] : lowLink[w];
-                    else
-                        lowLink[v] = lowLink[v] < preOrder[w] ? lowLink[v] : preOrder[w];
+                    q.push_back(w);
+                    done = false;
+                    break;
                 }
             }
-            q.pop();
-            if (lowLink[v] == preOrder[v])
+            if (done)
             {
-                set<int> scc;
-                scc.insert(v);
-                while (!sccQueue.empty() && preOrder[sccQueue.back()] > preOrder[v])
+                lowLink[v] = preOrder[v];
+                for (int w : AK[v])
                 {
-                    int k = sccQueue.back();
-                    sccQueue.pop();
-                    scc.insert(k);
+                    if (sccFound.find(w)==sccFound.end())
+                    {
+                        if (preOrder[w] > preOrder[v])
+                            lowLink[v] = lowLink[v] < lowLink[w] ? lowLink[v] : lowLink[w];
+                        else
+                            lowLink[v] = lowLink[v] < preOrder[w] ? lowLink[v] : preOrder[w];
+                    }
                 }
-                sccFound.insert(scc.begin(), scc.end());
+                q.pop_back();
+                if (lowLink[v] == preOrder[v])
+                {
+                    set<int> scc;
+                    scc.insert(v);
+                    while (!sccQueue.empty() && preOrder[sccQueue.back()] > preOrder[v])
+                    {
+                        int k = sccQueue.back();
+                        sccQueue.pop_back();
+                        scc.insert(k);
+                    }
+
+                    //vector<NodeList> subAK = getSubGraph(scc);
+                    
+                    for (int W : scc)
+                    {
+                        for (NodeList::iterator iter = AK[W].begin(); iter != AK[W].end(); )
+                        {
+                            if (scc.find(*iter) == scc.end())
+                                iter = AK[W].erase(iter); // advances iter
+                            else
+                                ++iter; // don't remove
+                        }
+                    }
+
+                    runInSubGraph(scc);
+
+                    sccFound.insert(scc.begin(), scc.end());
+                }
+                else
+                    sccQueue.push_back(v);
             }
-            else
-                sccQueue.push(v);
         }
     }
 
 }
 
-void CircuitFinder::removeNode(int s)
-{
-    for (int I = s; I < N; ++I)
-    {
-        auto IT = std::find(AK[I].begin(), AK[I].end(), s);
-        if (IT != AK[I].end())
-            AK[I].erase(IT);
-    }
-}
 
 void CircuitFinder::unblock(int U)
 {
-  Blocked[U - 1] = false;
+  Blocked[U] = false;
 
-  while (!B[U - 1].empty()) {
-    int W = B[U - 1].front();
-    B[U - 1].pop_front();
+  while (!B[U].empty()) {
+    int W = B[U].back();
+    B[U].pop_back();
 
-    if (Blocked[W - 1]) {
+    if (Blocked[W]) {
       unblock(W);
     }
   }
@@ -170,7 +181,7 @@ void CircuitFinder::loadTestData(string filename)
     ifstream indata;
     indata.open(filename);
     string line;
-    int vertexIndex = 1;
+    int vertexIndex = 0;
     int AK_ptr[280000];
     while (getline(indata, line)) {
         char* s = &line[0];
@@ -193,7 +204,7 @@ void CircuitFinder::loadTestData(string filename)
             nodes.push_back(accountOut);
             AK.push_back(NodeList());
             Blocked.push_back(false);
-            B.push_back(NodeList());
+            B.push_back(vector<int>());
         }
 
         if(intHash.find(accountIn)==intHash.end())
@@ -204,94 +215,94 @@ void CircuitFinder::loadTestData(string filename)
             nodes.push_back(accountIn);
             AK.push_back(NodeList());
             Blocked.push_back(false);
-            B.push_back(NodeList());
+            B.push_back(vector<int>());
         }
 
-        AK[intHash[accountOut] - 1].push_back(intHash[accountIn]); // 400us
+        AK[intHash[accountOut]].push_back(intHash[accountIn]); // 400us
     }
-    N = vertexIndex - 1;
+    N = vertexIndex;
+    falseBlocked = Blocked;
 #ifdef mydebug
     outputTime("Load Data");
     printMap();
 #endif
 }
 
-void CircuitFinder::circuitIterate(int V)
-{
-    Stack.push_back(V);
-    Blocked[V - 1] = true;
-    vector<int> s;
-    s.push_back(V);
-    vector<NodeList> sNode;
-    sNode.push_back(AK[V - 1]);
-    set<int> closed;
-    int thisNode, nextNode;
-    NodeList nbrs;
-    while (!s.empty())
-    {
-        thisNode = s.back();
-        nbrs = sNode.back();
-        if (!nbrs.empty() && Stack.size()<8)
-        {
-            nextNode = nbrs.back();
-            sNode.back().pop_back();
-            if (nextNode < V)
-                continue;
-            if (nextNode == V)
-            {
-                output();
-                closed.insert(Stack.begin(), Stack.end());
-            }
-            else if (!Blocked[nextNode - 1])
-            {
-                Stack.push_back(nextNode);
-                s.push_back(nextNode);
-                sNode.push_back(AK[nextNode - 1]);
-                closed.erase(nextNode);
-                Blocked[nextNode - 1] = true;
-                continue;
-            }
-        }
-        if (nbrs.empty() || Stack.size()>7)
-        {
-            if (closed.count(thisNode))
-            {
-                unblock(thisNode);
-            }
-            else
-            {
-                for (int W : AK[thisNode - 1])
-                {
-                    auto IT = std::find(B[W - 1].begin(), B[W - 1].end(), thisNode);
-                    if (IT == B[W - 1].end())
-                        B[W - 1].push_back(thisNode);
-                }
-            }
-            s.pop_back();
-            sNode.pop_back();
-            Stack.pop_back();
-        }
-    }
-}
+// void CircuitFinder::circuitIterate(int V)
+// {
+//     Stack.push_back(V);
+//     Blocked[V - 1] = true;
+//     vector<int> s;
+//     s.push_back(V);
+//     vector<NodeList> sNode;
+//     sNode.push_back(AK[V - 1]);
+//     set<int> closed;
+//     int thisNode, nextNode;
+//     NodeList nbrs;
+//     while (!s.empty())
+//     {
+//         thisNode = s.back();
+//         nbrs = sNode.back();
+//         if (!nbrs.empty() && Stack.size()<8)
+//         {
+//             nextNode = nbrs.back();
+//             sNode.back().pop_back();
+//             if (nextNode < V)
+//                 continue;
+//             if (nextNode == V)
+//             {
+//                 output();
+//                 closed.insert(Stack.begin(), Stack.end());
+//             }
+//             else if (!Blocked[nextNode - 1])
+//             {
+//                 Stack.push_back(nextNode);
+//                 s.push_back(nextNode);
+//                 sNode.push_back(AK[nextNode - 1]);
+//                 closed.erase(nextNode);
+//                 Blocked[nextNode - 1] = true;
+//                 continue;
+//             }
+//         }
+//         if (nbrs.empty() || Stack.size()>7)
+//         {
+//             if (closed.count(thisNode))
+//             {
+//                 unblock(thisNode);
+//             }
+//             else
+//             {
+//                 for (int W : AK[thisNode - 1])
+//                 {
+//                     auto IT = std::find(B[W - 1].begin(), B[W - 1].end(), thisNode);
+//                     if (IT == B[W - 1].end())
+//                         B[W - 1].push_back(thisNode);
+//                 }
+//             }
+//             s.pop_back();
+//             sNode.pop_back();
+//             Stack.pop_back();
+//         }
+//     }
+// }
 
 bool CircuitFinder::circuit(int V)
 {
   bool F = false;
 
   Stack.push_back(V);
-  Blocked[V - 1] = true;
+  Blocked[V] = true;
 
   auto circuitLen = Stack.size();
   if (circuitLen < 8)
   {
-      for (int W : AK[V - 1]) {
+      for (int W : AK[V]) {
           if (W == S) {
               output();
               F = true;
           }
-          else if (!Blocked[W - 1]) {
-              if (circuit(W))
-                  F=true;
+          else if (W>S && !Blocked[W]) {
+              F = circuit(W) || F;
           }
       }
   }
@@ -301,10 +312,10 @@ bool CircuitFinder::circuit(int V)
   if (F) {
     unblock(V);
   } else {
-    for (int W : AK[V - 1]) {
-      auto IT = std::find(B[W - 1].begin(), B[W - 1].end(), V);
-      if (IT == B[W - 1].end()) {
-        B[W - 1].push_back(V);
+    for (int W : AK[V]) {
+      auto IT = std::find(B[W].begin(), B[W].end(), V);
+      if (IT == B[W].end()) {
+        B[W].push_back(V);
       }
     }
   }
@@ -315,15 +326,15 @@ bool CircuitFinder::circuit(int V)
 
 int CircuitFinder::findMin()
 {
-    int min = nodes[*Stack.begin()-1];
+    int min = nodes[*Stack.begin()];
     int idOfMin = 0;
     int id = 0;
     for (auto I = Stack.begin() + 1, E = Stack.end(); I != E; ++I)
     {
         id++;
-        if (nodes[*I-1]<min)
+        if (nodes[*I]<min)
         {
-            min = nodes[*I-1];
+            min = nodes[*I];
             idOfMin = id;
         }
     }
@@ -356,14 +367,11 @@ void CircuitFinder::output()
   {
       resVect[circuitLen-3].push_back(vector<int>());
       int idOfMin = findMin();
-//      std::cout << "circuit: ";
       for (int i=idOfMin;i<circuitLen+idOfMin;i++)
       {
           auto I = Stack.begin()+(i % circuitLen);
-//          std::cout << nodes[*I-1] << " -> ";
-          resVect[circuitLen-3].back().push_back(nodes[*I-1]);
+          resVect[circuitLen-3].back().push_back(nodes[*I]);
       }
-//      std::cout << nodes[*(Stack.begin()+idOfMin)-1] << std::endl;
       circuitCount += 1;
   }
 }
@@ -404,31 +412,52 @@ void CircuitFinder::printMap()
     fout.close();
 }
 
-void CircuitFinder::run()
+void CircuitFinder::runInSubGraph(set<int> s)
 {
-  Stack.clear();
-  S = 1;
-#ifdef MYTIME
-    struct timeval ov_start, ov_end;
-    gettimeofday(&ov_start,NULL);
-#endif
-  while (S < N) {
-    for (int I = S; I <= N; ++I) {
-      Blocked[I-1] = false;
-      B[I-1].clear();
-    }
-    circuit(S);
-    //circuitIterate(S);
-
-    removeNode(S);
-
-    ++S;
+    for (set<int>::iterator iter=s.begin(); iter!=s.end();iter++)
+    {
+        S = *iter;
+        Blocked = falseBlocked;
+        for (set<int>::iterator inner_iter = iter; inner_iter != s.end(); inner_iter++) {
+            B[*(inner_iter)].clear();
+        }
+        circuit(S);
 
 #ifdef mydebug
     outputTime("A S cycle");
     cout << S << endl;
 #endif
-  }
+
+    }
+}
+
+void CircuitFinder::run()
+{
+  Stack.clear();
+  S = 0;
+#ifdef MYTIME
+    struct timeval ov_start, ov_end;
+    gettimeofday(&ov_start,NULL);
+#endif
+//   while (S < N) {
+//     for (int I = S; I <= N; ++I) {
+//       Blocked[I-1] = false;
+//       B[I-1].clear();
+//     }
+//     circuit(S);
+//     //circuitIterate(S);
+
+//     removeNode(S);
+
+//     ++S;
+
+// #ifdef mydebug
+//     outputTime("A S cycle");
+//     cout << S << endl;
+// #endif
+//   }
+
+strongComponent();
 #ifdef MYTIME
     gettimeofday(&ov_end,NULL);
     double timeuse
@@ -455,7 +484,9 @@ void CircuitFinder::run()
 #ifdef MYTIME
     gettimeofday(&ov_start,NULL);
 #endif
+
   printVector("/projects/student/result.txt");
+
 #ifdef MYTIME
     gettimeofday(&ov_end,NULL);
     timeuse
