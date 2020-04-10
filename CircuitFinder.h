@@ -15,6 +15,8 @@
 using namespace std;
 using namespace chrono;
 
+// #define MYTIME
+
 typedef std::list<int> NodeList;
 
 class CircuitFinder
@@ -354,6 +356,10 @@ void CircuitFinder::sortVector()
 
 void CircuitFinder::printVector(string filename)
 {
+#ifdef MYTIME
+    struct timeval ov_start, ov_end;
+    gettimeofday(&ov_start,NULL);
+#endif
     ofstream fout(filename);
     fout << circuitCount << endl;
     for (int i=0;i<5;i++)
@@ -367,6 +373,13 @@ void CircuitFinder::printVector(string filename)
         }
     }
     fout.close();
+#ifdef MYTIME
+    gettimeofday(&ov_end,NULL);
+    double timeuse
+        = 1000000*(ov_end.tv_sec-ov_start.tv_sec)
+        + ov_end.tv_usec-ov_start.tv_usec;
+    cout<<"printVector: "<<timeuse<<" us"<<endl;
+#endif
 }
 
 void CircuitFinder::printMap()
