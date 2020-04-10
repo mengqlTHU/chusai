@@ -22,7 +22,7 @@ class CircuitFinder
   std::vector<NodeList> AK;
   std::vector<int> Stack;
   std::vector<bool> Blocked;
-  std::vector<NodeList> B;
+  std::vector<vector<int>> B;
   map<int, int> m;
   vector<int> nodes;
   vector<vector<vector<int>>> resVect;
@@ -140,7 +140,7 @@ void CircuitFinder::unblock(int U)
 
   while (!B[U - 1].empty()) {
     int W = B[U - 1].front();
-    B[U - 1].pop_front();
+    B[U - 1].erase(B[U-1].begin());
 
     if (Blocked[W - 1]) {
       unblock(W);
@@ -168,7 +168,7 @@ void CircuitFinder::loadTestData(string filename)
             nodes.push_back(accountOut);
             AK.push_back(NodeList());
             Blocked.push_back(false);
-            B.push_back(NodeList());
+            B.push_back(vector<int>());
         }
 
         if (!m.count(accountIn))
@@ -177,7 +177,7 @@ void CircuitFinder::loadTestData(string filename)
             nodes.push_back(accountIn);
             AK.push_back(NodeList());
             Blocked.push_back(false);
-            B.push_back(NodeList());
+            B.push_back(vector<int>());
         }
 
         AK[m[accountOut] - 1].push_back(m[accountIn]);
@@ -262,9 +262,8 @@ bool CircuitFinder::circuit(int V)
               output();
               F = true;
           }
-          else if (!Blocked[W - 1]) {
-              if (circuit(W))
-                  F=true;
+          else if (W>S && !Blocked[W - 1]) {
+              F = circuit(W) || F;
           }
       }
   }
@@ -385,12 +384,12 @@ void CircuitFinder::run()
   while (S < N) {
     for (int I = S; I <= N; ++I) {
       Blocked[I-1] = false;
-      B[I-1].clear();
+      B[I - 1].clear();
     }
     circuit(S);
     //circuitIterate(S);
 
-    removeNode(S);
+    //removeNode(S);
 
     ++S;
 
