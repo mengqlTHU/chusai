@@ -1,16 +1,13 @@
 #ifndef CIRCUITFINDER_H
 #define CIRCUITFINDER_H
 
-#define _SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS //hash_map will be removed on windows in the future
-
 #include <algorithm>
 #include <iostream>
 #include <list>
 #include <vector>
 #include <fstream>
 #include <sstream>
-#include <map>
-#include <hash_map>
+#include <unordered_map>
 #include <set>
 #include <chrono>
 
@@ -77,8 +74,8 @@ public:
 
 void CircuitFinder::strongComponent()
 {
-    map<int, int> preOrder;
-    map<int, int> lowLink;
+    unordered_map<int, int> preOrder;
+    unordered_map<int, int> lowLink;
     set<int> sccFound;
     vector<int> sccQueue;
     int v;
@@ -176,9 +173,9 @@ void CircuitFinder::unblock(int U)
 void CircuitFinder::loadTestData(string filename)
 {
 #ifdef _WIN64
-    hash_map<int, int> intHash;
+    unordered_map<int, int> intHash;
 #else
-    __gnu_cxx::hash_map<int,int> intHash(20000);
+    unordered_map<int,int> intHash(20000);
 #endif
     ifstream indata;
     indata.open(filename);
