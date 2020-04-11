@@ -1,6 +1,8 @@
 #ifndef CIRCUITFINDER_H
 #define CIRCUITFINDER_H
 
+#pragma comment(linker, "/STACK:1073741824") //Require 1GB Stack RAM
+
 #define _SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS //hash_map will be removed on windows in the future
 
 #include <algorithm>
@@ -32,7 +34,7 @@ using namespace chrono;
 class CircuitFinder
 {
   vector<vector<int>> AK;
-  //vector<NodeList> subAK;
+  vector<vector<int>> subAK;
   vector<int> Stack;
   std::vector<bool> Blocked;
   std::vector<bool> falseBlocked;
@@ -75,16 +77,19 @@ public:
 };
 
 
+//Tarjan Algorithm to find strong component
 void CircuitFinder::strongComponent()
 {
     map<int, int> preOrder;
     map<int, int> lowLink;
     set<int> sccFound;
+    vector<set<int>> sccVec;
+    vector<int> sccMin;
     vector<int> sccQueue;
     int v;
     bool done;
     int i = 0;
-    for (int node = 0; node < N; node++)
+    for (int node = S; node < N; node++)
     {
         vector<int> q;
         if (sccFound.find(node)==sccFound.end())
@@ -101,11 +106,14 @@ void CircuitFinder::strongComponent()
             done = true;
             for (int w : AK[v])
             {
-                if (preOrder.find(w)==preOrder.end())
+                if (w >= S)
                 {
-                    q.push_back(w);
-                    done = false;
-                    break;
+                    if (preOrder.find(w) == preOrder.end())
+                    {
+                        q.push_back(w);
+                        done = false;
+                        break;
+                    }
                 }
             }
             if (done)
@@ -113,12 +121,15 @@ void CircuitFinder::strongComponent()
                 lowLink[v] = preOrder[v];
                 for (int w : AK[v])
                 {
-                    if (sccFound.find(w)==sccFound.end())
+                    if (w >= S)
                     {
-                        if (preOrder[w] > preOrder[v])
-                            lowLink[v] = lowLink[v] < lowLink[w] ? lowLink[v] : lowLink[w];
-                        else
-                            lowLink[v] = lowLink[v] < preOrder[w] ? lowLink[v] : preOrder[w];
+                        if (sccFound.find(w) == sccFound.end())
+                        {
+                            if (preOrder[w] > preOrder[v])
+                                lowLink[v] = lowLink[v] < lowLink[w] ? lowLink[v] : lowLink[w];
+                            else
+                                lowLink[v] = lowLink[v] < preOrder[w] ? lowLink[v] : preOrder[w];
+                        }
                     }
                 }
                 q.pop_back();
@@ -134,26 +145,40 @@ void CircuitFinder::strongComponent()
                     }
 
                     //vector<NodeList> subAK = getSubGraph(scc);
-                    
-                    for (int W : scc)
-                    {
-                        for (vector<int>::iterator iter = AK[W].begin(); iter != AK[W].end(); )
-                        {
-                            if (scc.find(*iter) == scc.end())
-                                iter = AK[W].erase(iter); // advances iter
-                            else
-                                ++iter; // don't remove
-                        }
-                    }
+                   
 
-                    runInSubGraph(scc);
-
+                    sccVec.push_back(scc);
                     sccFound.insert(scc.begin(), scc.end());
                 }
                 else
                     sccQueue.push_back(v);
             }
         }
+    }
+
+    set<int> resScc = *min_element(sccVec.begin(), sccVec.end(), [](set<int> a, set<int> b) {return *a.begin() < *b.begin(); });
+
+    if (resScc.size())
+    {
+        subAK = AK;
+
+        for (int W : resScc)
+        {
+            for (vector<int>::iterator iter = subAK[W].begin(); iter != subAK[W].end(); )
+            {
+                if (resScc.find(*iter) == resScc.end())
+                    iter = subAK[W].erase(iter); // advances iter
+                else
+                    ++iter; // don't remove
+            }
+        }
+        for (int W : resScc)
+        {
+            Blocked[W] = false;
+            B[W].clear();
+        }
+        //runInSubGraph(*resScc.begin());
+        circuit(*resScc.begin());
     }
 
 }
@@ -176,7 +201,7 @@ void CircuitFinder::unblock(int U)
 void CircuitFinder::loadTestData(string filename)
 {
 #ifdef _WIN64
-    hash_map<int, int> intHash;
+    map<int, int> intHash;
 #else
     __gnu_cxx::hash_map<int,int> intHash(20000);
 #endif
@@ -298,7 +323,7 @@ bool CircuitFinder::circuit(int V)
     auto circuitLen = Stack.size();
     if (circuitLen < 7)
     {
-        for (int W : AK[V]) {
+        for (int W : subAK[V]) {
             if (W > S && !Blocked[W])
                 F = circuit(W) || F;
             else if (W == S) {
@@ -309,7 +334,7 @@ bool CircuitFinder::circuit(int V)
     }
     else if (circuitLen == 7)
     {
-        for (int W : AK[V]) {
+        for (int W : subAK[V]) {
             if (W == S) {
                 output();
                 break;
@@ -324,7 +349,7 @@ bool CircuitFinder::circuit(int V)
         unblock(V);
     }
     else {
-        for (int W : AK[V]) {
+        for (int W : subAK[V]) {
             auto IT = std::find(B[W].begin(), B[W].end(), V);
             if (IT == B[W].end()) {
                 B[W].push_back(V);
@@ -451,25 +476,18 @@ void CircuitFinder::run()
     struct timeval ov_start, ov_end;
     gettimeofday(&ov_start,NULL);
 #endif
-//   while (S < N) {
-//     for (int I = S; I <= N; ++I) {
-//       Blocked[I-1] = false;
-//       B[I-1].clear();
-//     }
-//     circuit(S);
-//     //circuitIterate(S);
+while (S < N) {
+      //Blocked = falseBlocked;
+     //circuitIterate(S);
+    strongComponent();
+     ++S;
+ #ifdef mydebug
+     outputTime("A S cycle");
+     cout << S << endl;
+ #endif
+ }
 
-//     removeNode(S);
-
-//     ++S;
-
-// #ifdef mydebug
-//     outputTime("A S cycle");
-//     cout << S << endl;
-// #endif
-//   }
-
-strongComponent();
+//strongComponent();
 #ifdef MYTIME
     gettimeofday(&ov_end,NULL);
     double timeuse
@@ -529,7 +547,7 @@ int main()
 #endif
 
 #ifdef _WIN64
-    cf.loadTestData("../data/test_data.txt");
+    cf.loadTestData("../data/test_data_small.txt");
 #elif def TEST
     cf.loadTestData("/root/data/test_data_small.txt");
 #else
