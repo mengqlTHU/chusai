@@ -290,40 +290,50 @@ void CircuitFinder::loadTestData(string filename)
 
 bool CircuitFinder::circuit(int V)
 {
-  bool F = false;
+    bool F = false;
 
-  Stack.push_back(V);
-  Blocked[V] = true;
+    Stack.push_back(V);
+    Blocked[V] = true;
 
-  auto circuitLen = Stack.size();
-  if (circuitLen < 8)
-  {
-      for (int W : AK[V]) {
-          if (W == S) {
-              output();
-              F = true;
-          }
-          else if (W>S && !Blocked[W]) {
-              F = circuit(W) || F;
-          }
-      }
-  }
-  else
-      F = true;
-
-  if (F) {
-    unblock(V);
-  } else {
-    for (int W : AK[V]) {
-      auto IT = std::find(B[W].begin(), B[W].end(), V);
-      if (IT == B[W].end()) {
-        B[W].push_back(V);
-      }
+    auto circuitLen = Stack.size();
+    if (circuitLen < 7)
+    {
+        for (int W : AK[V]) {
+            if (W > S && !Blocked[W])
+                F = circuit(W) || F;
+            else if (W == S) {
+                output();
+                F = true;
+            }
+        }
     }
-  }
+    else if (circuitLen == 7)
+    {
+        for (int W : AK[V]) {
+            if (W == S) {
+                output();
+                break;
+            }
+        }
+        F = true;
+    }
+    else
+        F = true;
 
-  Stack.pop_back();
-  return F;
+    if (F) {
+        unblock(V);
+    }
+    else {
+        for (int W : AK[V]) {
+            auto IT = std::find(B[W].begin(), B[W].end(), V);
+            if (IT == B[W].end()) {
+                B[W].push_back(V);
+            }
+        }
+    }
+
+    Stack.pop_back();
+    return F;
 }
 
 int CircuitFinder::findMin()
