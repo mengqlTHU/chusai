@@ -3,7 +3,6 @@
 
 #include <algorithm>
 #include <iostream>
-#include <list>
 #include <vector>
 #include <fstream>
 #include <sstream>
@@ -71,7 +70,8 @@ public:
   void loadTestData(string filename);
 };
 
-
+//Tarjan算法寻找所有强连通分量
+//https://en.wikipedia.org/wiki/Tarjan%27s_strongly_connected_components_algorithm
 void CircuitFinder::strongComponent()
 {
     unordered_map<int, int> preOrder;
@@ -155,7 +155,8 @@ void CircuitFinder::strongComponent()
 
 }
 
-
+//unblock子函数
+//与Johnson论文中变量名称等都一致，除去Johnson是从list头部弹出，我们改成vector尾部弹出
 void CircuitFinder::unblock(int U)
 {
   Blocked[U] = false;
@@ -170,6 +171,9 @@ void CircuitFinder::unblock(int U)
   }
 }
 
+//数据载入函数
+//按照文件中所有帐户出现的先后顺序，将账户名压入nodes向量中
+//AK存储邻接表，用vector<vector<int>>实现
 void CircuitFinder::loadTestData(string filename)
 {
 #ifdef _WIN64
@@ -227,6 +231,8 @@ void CircuitFinder::loadTestData(string filename)
 #endif
 }
 
+
+//迭代版的找环函数，发现有性能问题，没使用
 // void CircuitFinder::circuitIterate(int V)
 // {
 //     Stack.push_back(V);
@@ -285,6 +291,9 @@ void CircuitFinder::loadTestData(string filename)
 //     }
 // }
 
+
+//递归版的找环函数
+//与Johnson论文一致，除去限制了搜索深度，到7停止
 bool CircuitFinder::circuit(int V)
 {
     bool F = false;
@@ -333,6 +342,7 @@ bool CircuitFinder::circuit(int V)
     return F;
 }
 
+//找到一条环之后，定位环中账户名称最小的位置
 int CircuitFinder::findMin()
 {
     int min = nodes[*Stack.begin()];
@@ -350,7 +360,7 @@ int CircuitFinder::findMin()
     return idOfMin;
 }
 
-
+//比较两条环的函数，用于环排序
 bool CircuitFinder::compareVector(vector<int> v1, vector<int> v2)
 {
     for (int i=0;i<v1.size();i++)
@@ -361,6 +371,7 @@ bool CircuitFinder::compareVector(vector<int> v1, vector<int> v2)
     return true;
 }
 
+//输出时间，辅助函数
 void CircuitFinder::outputTime(string info)
 {
     auto duration = duration_cast<microseconds>(system_clock::now() - start);
@@ -369,6 +380,8 @@ void CircuitFinder::outputTime(string info)
          << "Seconds" << endl;
 }
 
+
+//Circuit函数找到一条环后在此处output,即压入resVect
 void CircuitFinder::output()
 {
   auto circuitLen = Stack.size();
@@ -385,6 +398,8 @@ void CircuitFinder::output()
   }
 }
 
+
+//对同一种长度的环排序，最后调用
 void CircuitFinder::sortVector()
 {
     for (int i=0;i<5;i++)
@@ -396,6 +411,7 @@ void CircuitFinder::sortVector()
     }
 }
 
+//文件输出函数
 void CircuitFinder::printVector(string filename)
 {
     ofstream fout(filename);
@@ -413,6 +429,7 @@ void CircuitFinder::printVector(string filename)
     fout.close();
 }
 
+//输出nodes表，调试辅助函数
 void CircuitFinder::printMap()
 {
     ofstream fout("../data/map.txt");
@@ -421,6 +438,7 @@ void CircuitFinder::printMap()
     fout.close();
 }
 
+//在一个强连通分量中迭代所有的节点，调用circuit找环函数
 void CircuitFinder::runInSubGraph(set<int> s)
 {
     for (set<int>::iterator iter=s.begin(); iter!=s.end();iter++)
@@ -440,6 +458,8 @@ void CircuitFinder::runInSubGraph(set<int> s)
     }
 }
 
+
+//运行入口
 void CircuitFinder::run()
 {
   Stack.clear();
