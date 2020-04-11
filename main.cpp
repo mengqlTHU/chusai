@@ -530,7 +530,7 @@ int main()
 
 #ifdef _WIN64
     cf.loadTestData("../data/test_data.txt");
-#elif def TEST
+#elif TEST
     cf.loadTestData("/root/data/test_data_small.txt");
 #else
     cf.loadTestData("/data/test_data.txt");
