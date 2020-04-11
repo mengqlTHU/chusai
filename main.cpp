@@ -1,6 +1,8 @@
 #ifndef CIRCUITFINDER_H
 #define CIRCUITFINDER_H
 
+#define _SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS //hash_map will be removed on windows in the future
+
 #include <algorithm>
 #include <iostream>
 #include <list>
@@ -14,8 +16,6 @@
 
 using namespace std;
 using namespace chrono;
-
-#define MYTIME
 
 #define TEST
 
@@ -175,7 +175,11 @@ void CircuitFinder::unblock(int U)
 
 void CircuitFinder::loadTestData(string filename)
 {
+#ifdef _WIN64
+    hash_map<int, int> intHash;
+#else
     __gnu_cxx::hash_map<int,int> intHash(20000);
+#endif
     ifstream indata;
     indata.open(filename);
     string line;
@@ -483,7 +487,11 @@ strongComponent();
     gettimeofday(&ov_start,NULL);
 #endif
 
-  printVector("/projects/student/result.txt");
+#ifdef _WIN64
+    printVector("../data/myresult.txt");
+#else
+    printVector("/projects/student/result.txt");
+#endif
 
 #ifdef MYTIME
     gettimeofday(&ov_end,NULL);
@@ -509,11 +517,15 @@ int main()
     struct timeval ov_start, ov_end;
     gettimeofday(&ov_start,NULL);
 #endif
-#ifdef TEST
+
+#ifdef _WIN64
+    cf.loadTestData("../data/test_data.txt");
+#elif def TEST
     cf.loadTestData("/root/data/test_data_small.txt");
 #else
     cf.loadTestData("/data/test_data.txt");
 #endif
+
 #ifdef MYTIME
     gettimeofday(&ov_end,NULL);
     double timeuse
