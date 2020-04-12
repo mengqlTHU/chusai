@@ -9,11 +9,14 @@
 #include <unordered_map>
 #include <set>
 #include <chrono>
+#include <assert.h>
 
 using namespace std;
 using namespace chrono;
 
 #define TEST
+
+//#define MYTIME
 
 // #define TIMERS
 
@@ -55,7 +58,8 @@ class CircuitFinder
   void printVector(string filename);
   void printMap();
   void strongComponent();
-  void runInSubGraph(set<int> s);
+  void runInSubGraph(set<int>& s);
+  void runInSubGraph(int* s, int len);
 
 public:
   CircuitFinder()
@@ -70,93 +74,143 @@ public:
   void loadTestData(string filename);
 };
 
-//TarjanËã·¨Ñ°ÕÒËùÓÐÇ¿Á¬Í¨·ÖÁ¿
+//Tarjanï¿½ã·¨Ñ°ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç¿ï¿½ï¿½Í¨ï¿½ï¿½ï¿½ï¿½
 //https://en.wikipedia.org/wiki/Tarjan%27s_strongly_connected_components_algorithm
 void CircuitFinder::strongComponent()
 {
-    unordered_map<int, int> preOrder;
-    unordered_map<int, int> lowLink;
-    set<int> sccFound;
-    vector<int> sccQueue;
+//    unordered_map<int, int> preOrder;
+//    unordered_map<int, int> lowLink;
+//    set<int> sccFound;
+//    vector<int> sccQueue;
+    int preOrder_arr[N];
+    int sccFound_arr[N];
+    int lowLink_arr[N];
+    int q_arr[N];
+    int q_n = 0;
+    int sccQueue_arr[N];
+    int sccQueue_n = 0;
+    int scc_arr[N];
     int v;
     bool done;
     int i = 0;
+    for(int node=0;node<N;node++) 
+    {
+	preOrder_arr[node] = -1;
+	sccFound_arr[node] = -1;
+	scc_arr[node] = -1;
+    }
     for (int node = 0; node < N; node++)
     {
-        vector<int> q;
-        if (sccFound.find(node)==sccFound.end())
-            q.push_back(node);
+//        vector<int> q;
+//        if (sccFound.find(node)==sccFound.end())
+        if (sccFound_arr[node]==-1)
+	{
+//            q.push_back(node);
+	    q_arr[q_n++]=node;
+	}
 
-        while (!q.empty())
+        while (q_n>0)
         {
-            v = q.back();
-            if (preOrder.find(v)==preOrder.end())
+//            v = q.back();
+	    v = q_arr[q_n-1];
+            if (preOrder_arr[v]==-1)
             {
                 i++;
-                preOrder[v] = i;
-            }
+//                preOrder[v] = i;
+		preOrder_arr[v] = i;
+            } //else assert(preOrder[v]==preOrder_arr[v]);
             done = true;
             for (int w : AK[v])
             {
-                if (preOrder.find(w)==preOrder.end())
+                if (preOrder_arr[w]==-1)
                 {
-                    q.push_back(w);
+//                    q.push_back(w);
+		    q_arr[q_n++]=w;
                     done = false;
                     break;
                 }
             }
             if (done)
             {
-                lowLink[v] = preOrder[v];
+//                lowLink[v] = preOrder_arr[v];
+		lowLink_arr[v] = preOrder_arr[v];
                 for (int w : AK[v])
                 {
-                    if (sccFound.find(w)==sccFound.end())
+                    if (sccFound_arr[w]==-1)
                     {
-                        if (preOrder[w] > preOrder[v])
-                            lowLink[v] = lowLink[v] < lowLink[w] ? lowLink[v] : lowLink[w];
+                        if (preOrder_arr[w] > preOrder_arr[v])
+//                            lowLink[v] = lowLink[v] < lowLink[w] ? lowLink[v] : lowLink[w];
+                            lowLink_arr[v] = min(lowLink_arr[v],lowLink_arr[w]);
                         else
-                            lowLink[v] = lowLink[v] < preOrder[w] ? lowLink[v] : preOrder[w];
+//                            lowLink[v] = lowLink[v] < preOrder_arr[w] ? lowLink[v] : preOrder_arr[w];
+                            lowLink_arr[v] = min(lowLink_arr[v],preOrder_arr[w]);
                     }
                 }
-                q.pop_back();
-                if (lowLink[v] == preOrder[v])
+//                q.pop_back();
+		q_n--;
+                if (lowLink_arr[v] == preOrder_arr[v])
                 {
                     set<int> scc;
+		    int scc_val[sccQueue_n+1];
+		    int scc_i = 0;
+		    scc_val[scc_i++] = v;
                     scc.insert(v);
-                    while (!sccQueue.empty() && preOrder[sccQueue.back()] > preOrder[v])
+		    scc_arr[v] = 1;
+//                    while (!sccQueue.empty() && preOrder_arr[sccQueue.back()] > preOrder_arr[v])
+                    while (sccQueue_n>0 && preOrder_arr[sccQueue_arr[sccQueue_n-1]] > preOrder_arr[v])
                     {
-                        int k = sccQueue.back();
-                        sccQueue.pop_back();
+//                        int k = sccQueue.back();
+			int k = sccQueue_arr[--sccQueue_n];
+//                        sccQueue.pop_back();
                         scc.insert(k);
+			scc_arr[k] = 1;
+			scc_val[scc_i++]=k;
                     }
 
                     //vector<NodeList> subAK = getSubGraph(scc);
-                    
-                    for (int W : scc)
-                    {
-                        for (vector<int>::iterator iter = AK[W].begin(); iter != AK[W].end(); )
-                        {
-                            if (scc.find(*iter) == scc.end())
-                                iter = AK[W].erase(iter); // advances iter
+                    for (int ii=0;ii<scc_i;ii++)
+		    {
+			int tmp = scc_val[ii];
+                        for (vector<int>::iterator iter = AK[tmp].begin(); iter != AK[tmp].end(); )
+			{ 
+                            if (scc_arr[*iter] == -1)
+                                iter = AK[tmp].erase(iter); // advances iter
                             else
                                 ++iter; // don't remove
                         }
+			sccFound_arr[tmp] = 1;
                     }
 
-                    runInSubGraph(scc);
+//                    for (int W : scc)
+//                    {
+//                        for (vector<int>::iterator iter = AK[W].begin(); iter != AK[W].end(); )
+//                        {
+//                            if (scc_arr[*iter] == -1)
+//                                iter = AK[W].erase(iter); // advances iter
+//                            else
+//                                ++iter; // don't remove
+//                        }
+//			sccFound_arr[W] = 1;
+//                    }
 
-                    sccFound.insert(scc.begin(), scc.end());
+//                    runInSubGraph(scc);
+                    runInSubGraph(scc_val, scc_i);
+
+//                    sccFound.insert(scc.begin(), scc.end());
                 }
                 else
-                    sccQueue.push_back(v);
+		{
+//                    sccQueue.push_back(v);
+		    sccQueue_arr[sccQueue_n++] = v;
+		}
             }
         }
     }
 
 }
 
-//unblock×Óº¯Êý
-//ÓëJohnsonÂÛÎÄÖÐ±äÁ¿Ãû³ÆµÈ¶¼Ò»ÖÂ£¬³ýÈ¥JohnsonÊÇ´ÓlistÍ·²¿µ¯³ö£¬ÎÒÃÇ¸Ä³ÉvectorÎ²²¿µ¯³ö
+//unblockï¿½Óºï¿½ï¿½ï¿½
+//ï¿½ï¿½Johnsonï¿½ï¿½ï¿½ï¿½ï¿½Ð±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ÆµÈ¶ï¿½Ò»ï¿½Â£ï¿½ï¿½ï¿½È¥Johnsonï¿½Ç´ï¿½listÍ·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç¸Ä³ï¿½vectorÎ²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 void CircuitFinder::unblock(int U)
 {
   Blocked[U] = false;
@@ -171,9 +225,9 @@ void CircuitFinder::unblock(int U)
   }
 }
 
-//Êý¾ÝÔØÈëº¯Êý
-//°´ÕÕÎÄ¼þÖÐËùÓÐÕÊ»§³öÏÖµÄÏÈºóË³Ðò£¬½«ÕË»§ÃûÑ¹ÈënodesÏòÁ¿ÖÐ
-//AK´æ´¢ÁÚ½Ó±í£¬ÓÃvector<vector<int>>ÊµÏÖ
+//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ëº¯ï¿½ï¿½
+//ï¿½ï¿½ï¿½ï¿½ï¿½Ä¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê»ï¿½ï¿½ï¿½ï¿½Öµï¿½ï¿½Èºï¿½Ë³ï¿½ò£¬½ï¿½ï¿½Ë»ï¿½ï¿½ï¿½Ñ¹ï¿½ï¿½nodesï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+//AKï¿½æ´¢ï¿½Ú½Ó±ï¿½ï¿½ï¿½ï¿½ï¿½vector<vector<int>>Êµï¿½ï¿½
 void CircuitFinder::loadTestData(string filename)
 {
 #ifdef _WIN64
@@ -232,7 +286,7 @@ void CircuitFinder::loadTestData(string filename)
 }
 
 
-//µü´ú°æµÄÕÒ»·º¯Êý£¬·¢ÏÖÓÐÐÔÄÜÎÊÌâ£¬Ã»Ê¹ÓÃ
+//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½â£¬Ã»Ê¹ï¿½ï¿½
 // void CircuitFinder::circuitIterate(int V)
 // {
 //     Stack.push_back(V);
@@ -292,8 +346,8 @@ void CircuitFinder::loadTestData(string filename)
 // }
 
 
-//µÝ¹é°æµÄÕÒ»·º¯Êý
-//ÓëJohnsonÂÛÎÄÒ»ÖÂ£¬³ýÈ¥ÏÞÖÆÁËËÑË÷Éî¶È£¬µ½7Í£Ö¹
+//ï¿½Ý¹ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½
+//ï¿½ï¿½Johnsonï¿½ï¿½ï¿½ï¿½Ò»ï¿½Â£ï¿½ï¿½ï¿½È¥ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È£ï¿½ï¿½ï¿½7Í£Ö¹
 bool CircuitFinder::circuit(int V)
 {
     bool F = false;
@@ -342,7 +396,7 @@ bool CircuitFinder::circuit(int V)
     return F;
 }
 
-//ÕÒµ½Ò»Ìõ»·Ö®ºó£¬¶¨Î»»·ÖÐÕË»§Ãû³Æ×îÐ¡µÄÎ»ÖÃ
+//ï¿½Òµï¿½Ò»ï¿½ï¿½ï¿½ï¿½Ö®ï¿½ó£¬¶ï¿½Î»ï¿½ï¿½ï¿½ï¿½ï¿½Ë»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð¡ï¿½ï¿½Î»ï¿½ï¿½
 int CircuitFinder::findMin()
 {
     int min = nodes[*Stack.begin()];
@@ -360,7 +414,7 @@ int CircuitFinder::findMin()
     return idOfMin;
 }
 
-//±È½ÏÁ½Ìõ»·µÄº¯Êý£¬ÓÃÓÚ»·ÅÅÐò
+//ï¿½È½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Äºï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ú»ï¿½ï¿½ï¿½ï¿½ï¿½
 bool CircuitFinder::compareVector(vector<int> v1, vector<int> v2)
 {
     for (int i=0;i<v1.size();i++)
@@ -371,7 +425,7 @@ bool CircuitFinder::compareVector(vector<int> v1, vector<int> v2)
     return true;
 }
 
-//Êä³öÊ±¼ä£¬¸¨Öúº¯Êý
+//ï¿½ï¿½ï¿½Ê±ï¿½ä£¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 void CircuitFinder::outputTime(string info)
 {
     auto duration = duration_cast<microseconds>(system_clock::now() - start);
@@ -381,7 +435,7 @@ void CircuitFinder::outputTime(string info)
 }
 
 
-//Circuitº¯ÊýÕÒµ½Ò»Ìõ»·ºóÔÚ´Ë´¦output,¼´Ñ¹ÈëresVect
+//Circuitï¿½ï¿½ï¿½ï¿½ï¿½Òµï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ú´Ë´ï¿½output,ï¿½ï¿½Ñ¹ï¿½ï¿½resVect
 void CircuitFinder::output()
 {
   auto circuitLen = Stack.size();
@@ -399,7 +453,7 @@ void CircuitFinder::output()
 }
 
 
-//¶ÔÍ¬Ò»ÖÖ³¤¶ÈµÄ»·ÅÅÐò£¬×îºóµ÷ÓÃ
+//ï¿½ï¿½Í¬Ò»ï¿½Ö³ï¿½ï¿½ÈµÄ»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 void CircuitFinder::sortVector()
 {
     for (int i=0;i<5;i++)
@@ -411,7 +465,7 @@ void CircuitFinder::sortVector()
     }
 }
 
-//ÎÄ¼þÊä³öº¯Êý
+//ï¿½Ä¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 void CircuitFinder::printVector(string filename)
 {
     ofstream fout(filename);
@@ -429,7 +483,7 @@ void CircuitFinder::printVector(string filename)
     fout.close();
 }
 
-//Êä³önodes±í£¬µ÷ÊÔ¸¨Öúº¯Êý
+//ï¿½ï¿½ï¿½nodesï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ô¸ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 void CircuitFinder::printMap()
 {
     ofstream fout("../data/map.txt");
@@ -438,15 +492,36 @@ void CircuitFinder::printMap()
     fout.close();
 }
 
-//ÔÚÒ»¸öÇ¿Á¬Í¨·ÖÁ¿ÖÐµü´úËùÓÐµÄ½Úµã£¬µ÷ÓÃcircuitÕÒ»·º¯Êý
-void CircuitFinder::runInSubGraph(set<int> s)
+//ï¿½ï¿½Ò»ï¿½ï¿½Ç¿ï¿½ï¿½Í¨ï¿½ï¿½ï¿½ï¿½ï¿½Ðµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ÐµÄ½Úµã£¬ï¿½ï¿½ï¿½ï¿½circuitï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½
+//void CircuitFinder::runInSubGraph(set<int>& s)
+//{
+//    for (set<int>::iterator iter=s.begin(); iter!=s.end();iter++)
+//    {
+//        S = *iter;
+//        Blocked = falseBlocked;
+//        for (set<int>::iterator inner_iter = iter; inner_iter != s.end(); inner_iter++) {
+//            B[*(inner_iter)].clear();
+//        }
+////        circuit(S);
+//
+//#ifdef mydebug
+//    outputTime("A S cycle");
+//    cout << S << endl;
+//#endif
+//
+//    }
+//}
+
+void CircuitFinder::runInSubGraph(int* s, int len)
 {
-    for (set<int>::iterator iter=s.begin(); iter!=s.end();iter++)
+    for (int i=0;i<len;i++)
     {
-        S = *iter;
+        S = s[i];
         Blocked = falseBlocked;
-        for (set<int>::iterator inner_iter = iter; inner_iter != s.end(); inner_iter++) {
-            B[*(inner_iter)].clear();
+	for(int j=i;j<len;j++)
+	{
+//        for (set<int>::iterator inner_iter = iter; inner_iter != s.end(); inner_iter++) {
+            B[s[j]].clear();
         }
         circuit(S);
 
@@ -459,7 +534,7 @@ void CircuitFinder::runInSubGraph(set<int> s)
 }
 
 
-//ÔËÐÐÈë¿Ú
+//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 void CircuitFinder::run()
 {
   Stack.clear();
@@ -547,7 +622,7 @@ int main()
 
 #ifdef _WIN64
     cf.loadTestData("../data/test_data.txt");
-#elif TEST
+#elif defined TEST
     cf.loadTestData("/root/data/test_data_small.txt");
 #else
     cf.loadTestData("/data/test_data.txt");
