@@ -27,11 +27,17 @@ using namespace chrono;
 
 class CircuitFinder
 {
-  vector<vector<int>> AK;
+  vector<vector<int>> AK;//出邻接表
+  vector<int> inDeg;//入度
   //vector<NodeList> subAK;
+  vector<set<int>> removedEdge;
   vector<int> Stack;
+  vector<int> szwarcStack;
   std::vector<bool> Blocked;
   std::vector<bool> falseBlocked;
+  vector<bool> mark;
+  vector<bool> reach;
+  vector<int> position;
   std::vector<vector<int>> B;
 //   map<int, int> m;
   vector<int> nodes;
@@ -43,11 +49,15 @@ class CircuitFinder
 
   void unblock(int U);
   bool circuit(int V);
+  bool cycle(int v, int q);
+  void noCycle(int x, int y);
+  void unMark(int x);
   //bool circuitSubGraph(int V);
   //vector<NodeList> getSubGraph(set<int> s);
 
   //void circuitIterate(int V);
   void output();
+  void szwarcOutput(int v, int w);
   int findMin();
   static bool compareVector(vector<int> v1, vector<int> v2);
   void outputTime(string info);
@@ -59,7 +69,7 @@ class CircuitFinder
 
 public:
   CircuitFinder()
-      :resVect(5) //3,4,5,6,7
+      :resVect(5),AK(80000),nodes(80000) //3,4,5,6,7
   {
       N=0;
       circuitCount=0;
@@ -131,19 +141,29 @@ void CircuitFinder::strongComponent()
                     }
 
                     //vector<NodeList> subAK = getSubGraph(scc);
-                    
-                    for (int W : scc)
-                    {
-                        for (vector<int>::iterator iter = AK[W].begin(); iter != AK[W].end(); )
-                        {
-                            if (scc.find(*iter) == scc.end())
-                                iter = AK[W].erase(iter); // advances iter
-                            else
-                                ++iter; // don't remove
-                        }
-                    }
 
-                    runInSubGraph(scc);
+                    if (scc.size() > 1)
+                    {
+                        //for (int W : scc)
+                        //{
+                        //    for (vector<int>::iterator iter = AK[W].begin(); iter != AK[W].end(); )
+                        //    {
+                        //        if (scc.find(*iter) == scc.end())
+                        //            iter = AK[W].erase(iter); // advances iter
+                        //        else
+                        //            ++iter; // don't remove
+                        //    }
+                        //}
+
+                        int maxDegS = *max_element(scc.begin(), scc.end(), [this](int a, int b) {return inDeg[a] > inDeg[b];});
+                        cycle(maxDegS,0);
+                        //for (int W : scc)
+                        //{
+                        //    reach[W] = false;
+                        //    mark[W] = false;
+                        //}
+                    }
+                    //runInSubGraph(scc);
 
                     sccFound.insert(scc.begin(), scc.end());
                 }
@@ -153,6 +173,26 @@ void CircuitFinder::strongComponent()
         }
     }
 
+}
+
+inline void CircuitFinder::noCycle(int x, int y)
+{
+    B[y].push_back(x);
+    removedEdge[x].insert(y);
+    //AK[x].erase(find(AK[x].begin(), AK[x].end(), y));
+}
+
+inline void CircuitFinder::unMark(int x)
+{
+    mark[x] = false;
+    for (int y : B[x])
+    {
+        //AK[y].push_back(x);
+        removedEdge[y].erase(x);
+        if (mark[y])
+            unMark(y);
+    }
+    B[x].clear();
 }
 
 //unblock子函数
@@ -185,7 +225,7 @@ void CircuitFinder::loadTestData(string filename)
     indata.open(filename);
     string line;
     int vertexIndex = 0;
-    int AK_ptr[280000];
+    inDeg.resize(140000, 0);
     while (getline(indata, line)) {
         char* s = &line[0];
         int tmp=0;
@@ -202,28 +242,25 @@ void CircuitFinder::loadTestData(string filename)
         if(intHash.find(accountOut)==intHash.end())
         // if (!m.count(accountOut))
         {
-            intHash[accountOut] = vertexIndex++;
-            // m[accountOut] = vertexIndex++;
-            nodes.push_back(accountOut);
-            AK.push_back(vector<int>());
-            Blocked.push_back(false);
-            B.push_back(vector<int>());
+            intHash[accountOut] = vertexIndex;
+            nodes[vertexIndex++] = accountOut;
         }
 
         if(intHash.find(accountIn)==intHash.end())
         // if (!m.count(accountIn)) // 1700us
         {
-            // m[accountIn] = vertexIndex++;
-            intHash[accountIn] = vertexIndex++;
-            nodes.push_back(accountIn);
-            AK.push_back(vector<int>());
-            Blocked.push_back(false);
-            B.push_back(vector<int>());
+            intHash[accountIn] = vertexIndex;
+            nodes[vertexIndex++] = accountIn;
         }
 
         AK[intHash[accountOut]].push_back(intHash[accountIn]); // 400us
+        inDeg[intHash[accountIn]] += 1;
     }
     N = vertexIndex;
+    B.resize(N);Blocked.resize(N,false);
+    mark.resize(N, false); reach.resize(N, false); position.resize(N);
+    nodes.resize(N); AK.resize(N); inDeg.resize(N); removedEdge.resize(N);
+
     falseBlocked = Blocked;
 #ifdef mydebug
     outputTime("Load Data");
@@ -291,6 +328,46 @@ void CircuitFinder::loadTestData(string filename)
 //     }
 // }
 
+
+//szwarc的找环函数
+//与Szwarc论文一致，除去限制了搜索深度，到7停止
+bool CircuitFinder::cycle(int v, int q)
+{
+    bool f;
+    int t;
+    mark[v] = true;
+    f = false;
+    szwarcStack.push_back(v);
+    t = Stack.size();
+    position[v] = t;
+    if (!reach[v])
+        q = t;
+    for (int w : AK[v])
+    {
+        if (removedEdge[v].find(w) != removedEdge[v].end())
+            continue;
+        if (!mark[w])
+        {
+            if (cycle(w,q))
+                f = true;
+            else
+                noCycle(v, w);
+        }
+        else if (position[w] <= q)
+        {
+            szwarcOutput(v, w);
+            f = true;
+        }
+        else
+            noCycle(v, w);
+    }
+    szwarcStack.pop_back();
+    if (f)
+        unMark(v);
+    reach[v] = true;
+    position[v] = N;
+    return f;
+}
 
 //递归版的找环函数
 //与Johnson论文一致，除去限制了搜索深度，到7停止
@@ -385,7 +462,7 @@ void CircuitFinder::outputTime(string info)
 void CircuitFinder::output()
 {
   auto circuitLen = Stack.size();
-  if (circuitLen>2)
+  if (circuitLen>2 && circuitLen<8)
   {
       resVect[circuitLen-3].push_back(vector<int>());
       int idOfMin = findMin();
@@ -396,6 +473,20 @@ void CircuitFinder::output()
       }
       circuitCount += 1;
   }
+}
+
+void CircuitFinder::szwarcOutput(int v, int w)
+{
+    Stack.clear();
+    auto posW = find(szwarcStack.begin(), szwarcStack.end(), w);
+    auto posV = find(posW, szwarcStack.end(), v);
+
+    for (vector<int>::iterator iter = posW; iter != posV; iter++)
+    {
+        Stack.push_back(*iter);
+    }
+    Stack.push_back(*posV);
+    output();
 }
 
 
