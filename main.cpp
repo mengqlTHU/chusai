@@ -92,14 +92,14 @@ void CircuitFinder::strongComponent()
 	int sccQueue_n = 0;
 	int scc_arr[n];
 #else
-	int preOrder_arr[N];
-	int sccFound_arr[N];
-	int lowLink_arr[N];
-	int q_arr[N];
+	int *preOrder_arr = new int[N];
+	int *sccFound_arr = new int[N];
+	int *lowLink_arr = new int[N];
+	int *q_arr = new int[N];
 	int q_n = 0;
-	int sccQueue_arr[N];
+	int *sccQueue_arr = new int[N];
 	int sccQueue_n = 0;
-	int scc_arr[N];
+	int *scc_arr = new int[N];
 #endif
 	int v;
 	bool done;
@@ -165,7 +165,7 @@ void CircuitFinder::strongComponent()
 #ifdef _WIN64
 					int scc_val[10000];
 #else
-					int scc_val[sccQueue_n + 1];
+					int *scc_val = new int[sccQueue_n + 1];
 #endif
 					int scc_i = 0;
 					scc_val[scc_i++] = v;
