@@ -62,7 +62,7 @@ class CircuitFinder
 	bool* Blocked;
 	//std::vector<bool> falseBlocked;
 	//std::vector<vector<int>> B;
-	int** B;
+	int* B;
 	int* sizeB;
 	//   map<int, int> m;
 	vector<int> nodes;
@@ -266,7 +266,7 @@ void CircuitFinder::unblock(int U)
 	//  }
 	//}
 	while (sizeB[U] > 0) {
-		int W = B[U][sizeB[U]];
+		int W = B[U*10 + sizeB[U]];
 		sizeB[U]--;
 
 		if (Blocked[W]) {
@@ -330,13 +330,12 @@ void CircuitFinder::loadTestData(string filename)
 	}
 	N = vertexIndex;
 
-	B = (int**)malloc(sizeof(int*) * N);
+	B = (int*)malloc(sizeof(int) * N * 10);
 	sizeB = (int*)malloc(sizeof(int) * N);
 	Blocked = (bool*)malloc(sizeof(bool) * N);
 
 	for (int i = 0; i < N; i++)
 	{
-		B[i] = (int*)malloc(sizeof(int) * 10);
 		Blocked[i] = false;
 		sizeB[i] = 0;
 	}
@@ -454,7 +453,7 @@ bool CircuitFinder::circuit(int V)
 			bool discovered = false;
 			for (int i = 0; i < sizeB[W]; i++)
 			{
-				if (B[W][i] == V)
+				if (B[W*10+i] == V)
 				{
 					discovered = true;
 					break;
@@ -463,7 +462,7 @@ bool CircuitFinder::circuit(int V)
 			if (!discovered)
 			{
 				sizeB[W]++;
-				B[W][sizeB[W]] = V;
+				B[W*10+sizeB[W]] = V;
 			}
 		}
 	}
@@ -772,7 +771,7 @@ Timer:startTimer("overall");
 #endif
 
 #ifdef _WIN64
-	cf.loadTestData("../data/test_data_small.txt");
+	cf.loadTestData("./data/77409/test_data.txt");
 #elif defined TEST
 	cf.loadTestData("./data/38252/test_data.txt");
 #else
