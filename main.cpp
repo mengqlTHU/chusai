@@ -31,9 +31,12 @@ class CircuitFinder
   vector<vector<int>> AK;
   //vector<NodeList> subAK;
   vector<int> Stack;
-  std::vector<bool> Blocked;
-  std::vector<bool> falseBlocked;
-  std::vector<vector<int>> B;
+  //std::vector<bool> Blocked;
+  bool* Blocked;
+  //std::vector<bool> falseBlocked;
+  //std::vector<vector<int>> B;
+  int** B;
+  int* sizeB;
 //   map<int, int> m;
   vector<int> nodes;
   vector<vector<vector<int>>> resVect;
@@ -160,14 +163,23 @@ void CircuitFinder::unblock(int U)
 {
   Blocked[U] = false;
 
-  while (!B[U].empty()) {
-    int W = B[U].back();
-    B[U].pop_back();
+  //while (!B[U].empty()) {
+  //  int W = B[U].back();
+  //  B[U].pop_back();
 
-    if (Blocked[W]) {
-      unblock(W);
-    }
+  //  if (Blocked[W]) {
+  //    unblock(W);
+  //  }
+  //}
+  while (sizeB[U]>0) {
+      int W = B[U][sizeB[U]];
+      sizeB[U]--;
+
+        if (Blocked[W]) {
+          unblock(W);
+        }
   }
+  
 }
 
 void CircuitFinder::loadTestData(string filename)
@@ -202,8 +214,8 @@ void CircuitFinder::loadTestData(string filename)
             // m[accountOut] = vertexIndex++;
             nodes.push_back(accountOut);
             AK.push_back(vector<int>());
-            Blocked.push_back(false);
-            B.push_back(vector<int>());
+            //Blocked.push_back(false);
+            //B.push_back(vector<int>());
         }
 
         if(intHash.find(accountIn)==intHash.end())
@@ -213,14 +225,25 @@ void CircuitFinder::loadTestData(string filename)
             intHash[accountIn] = vertexIndex++;
             nodes.push_back(accountIn);
             AK.push_back(vector<int>());
-            Blocked.push_back(false);
-            B.push_back(vector<int>());
+            //Blocked.push_back(false);
+            //B.push_back(vector<int>());
         }
 
         AK[intHash[accountOut]].push_back(intHash[accountIn]); // 400us
     }
     N = vertexIndex;
-    falseBlocked = Blocked;
+
+    B = (int**)malloc(sizeof(int*) * N);
+    sizeB = (int*)malloc(sizeof(int) * N);
+    Blocked = (bool*)malloc(sizeof(bool) * N);
+
+    for (int i = 0; i < N; i++)
+    {
+        B[i] = (int*)malloc(sizeof(int) * 10);
+        Blocked[i] = false;
+        sizeB[i] = 0;
+    }
+    //falseBlocked = Blocked;
 #ifdef mydebug
     outputTime("Load Data");
     printMap();
@@ -322,9 +345,23 @@ bool CircuitFinder::circuit(int V)
     }
     else {
         for (int W : AK[V]) {
-            auto IT = std::find(B[W].begin(), B[W].end(), V);
-            if (IT == B[W].end()) {
-                B[W].push_back(V);
+            //auto IT = std::find(B[W].begin(), B[W].end(), V);
+            //if (IT == B[W].end()) {
+            //    B[W].push_back(V);
+            //}
+            bool discovered = false;
+            for (int i = 0; i < sizeB[W]; i++)
+            {
+                if (B[W][i] == V)
+                {
+                    discovered = true;
+                    break;
+                }
+            }
+            if (!discovered)
+            {
+                sizeB[W]++;
+                B[W][sizeB[W]] = V;
             }
         }
     }
@@ -426,9 +463,11 @@ void CircuitFinder::runInSubGraph(set<int> s)
     for (set<int>::iterator iter=s.begin(); iter!=s.end();iter++)
     {
         S = *iter;
-        Blocked = falseBlocked;
+
+        //Blocked = falseBlocked;
         for (set<int>::iterator inner_iter = iter; inner_iter != s.end(); inner_iter++) {
-            B[*(inner_iter)].clear();
+            //B[*(inner_iter)].clear();
+            Blocked[*(inner_iter)] = false;
         }
         circuit(S);
 
@@ -526,7 +565,7 @@ int main()
 #endif
 
 #ifdef _WIN64
-    cf.loadTestData("../data/test_data.txt");
+    cf.loadTestData("../data/test_data_small.txt");
 #elif TEST
     cf.loadTestData("/root/data/test_data_small.txt");
 #else
