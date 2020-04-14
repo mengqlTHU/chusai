@@ -363,7 +363,7 @@ void CircuitFinder::loadTestData(string filename)
 		AK[reverseNodes[outArr[i]]].push_back(reverseNodes[inArr[i]]);
 	}
 
-	for (int i = 0; i < recordIndex; i++)
+	for (int i = 0; i < N; i++)
 	{
 		sort(AK[i].begin(), AK[i].end());
 	}
@@ -808,7 +808,7 @@ Timer:startTimer("overall");
 #endif
 
 #ifdef _WIN64
-	cf.loadTestData("./data/58284/test_data.txt");
+	cf.loadTestData("./data/1004812/test_data.txt");
 #elif defined TEST
 	cf.loadTestData("./data/38252/test_data.txt");
 #else
