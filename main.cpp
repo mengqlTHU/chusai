@@ -1,6 +1,8 @@
 #ifndef CIRCUITFINDER_H
 #define CIRCUITFINDER_H
 
+#define _CRT_SECURE_NO_WARNINGS
+
 #include <algorithm>
 #include <iostream>
 #include <vector>
@@ -33,22 +35,22 @@ int sizeTable[10] = { 9, 99, 999, 9999, 99999, 999999, 9999999,
 
 int intSize(int x)
 {
-    for (int i = 0; i<10 ; ++i)
-    {
-      if(x<=sizeTable[i]) return i+1;
-    }
+	for (int i = 0; i < 10; ++i)
+	{
+		if (x <= sizeTable[i]) return i + 1;
+	}
 };
 
 int append_uint_to_str(char* s, unsigned int i, int size)
 {
-    s[size] = ',';
-    int tmp = size;
-    while(i>0)
-    {
-      s[--size] = '0' + i % 10;
-      i /= 10;
-    }
-    return tmp+1;
+	s[size] = ',';
+	int tmp = size;
+	while (i > 0)
+	{
+		s[--size] = '0' + i % 10;
+		i /= 10;
+	}
+	return tmp + 1;
 };
 
 class CircuitFinder
@@ -56,9 +58,13 @@ class CircuitFinder
 	vector<vector<int>> AK;
 	//vector<NodeList> subAK;
 	vector<int> Stack;
-	std::vector<bool> Blocked;
-	std::vector<bool> falseBlocked;
-	std::vector<vector<int>> B;
+	//std::vector<bool> Blocked;
+	bool* Blocked;
+	//std::vector<bool> falseBlocked;
+	//std::vector<vector<int>> B;
+	int* B;
+	int* sizeB;
+	//   map<int, int> m;
 	vector<int> nodes;
 	vector<vector<vector<int>>> resVect;
 	int N;
@@ -80,7 +86,7 @@ class CircuitFinder
 	void printVector(string filename);
 	void printMap();
 	void strongComponent();
-	void runInSubGraph(set<int>& s);
+	void runInSubGraph(set<int> s);
 	void runInSubGraph(int* s, int len);
 
 public:
@@ -115,14 +121,14 @@ void CircuitFinder::strongComponent()
 	int sccQueue_n = 0;
 	int scc_arr[n];
 #else
-	int *preOrder_arr = new int[N];
-	int *sccFound_arr = new int[N];
-	int *lowLink_arr = new int[N];
-	int *q_arr = new int[N];
+	int* preOrder_arr = new int[N];
+	int* sccFound_arr = new int[N];
+	int* lowLink_arr = new int[N];
+	int* q_arr = new int[N];
 	int q_n = 0;
-	int *sccQueue_arr = new int[N];
+	int* sccQueue_arr = new int[N];
 	int sccQueue_n = 0;
-	int *scc_arr = new int[N];
+	int* scc_arr = new int[N];
 #endif
 	int v;
 	bool done;
@@ -143,97 +149,7 @@ void CircuitFinder::strongComponent()
 			q_arr[q_n++] = node;
 		}
 
-        while (q_n>0)
-        {
-//            v = q.back();
-	    v = q_arr[q_n-1];
-            if (preOrder_arr[v]==-1)
-            {
-                i++;
-//                preOrder[v] = i;
-		preOrder_arr[v] = i;
-            } //else assert(preOrder[v]==preOrder_arr[v]);
-            done = true;
-            for (int w : AK[v])
-            {
-                if (preOrder_arr[w]==-1)
-                {
-//                    q.push_back(w);
-		    q_arr[q_n++]=w;
-                    done = false;
-                    break;
-                }
-            }
-            if (done)
-            {
-//                lowLink[v] = preOrder_arr[v];
-		lowLink_arr[v] = preOrder_arr[v];
-                for (int w : AK[v])
-                {
-                    if (sccFound_arr[w]==-1)
-                    {
-                        if (preOrder_arr[w] > preOrder_arr[v])
-//                            lowLink[v] = lowLink[v] < lowLink[w] ? lowLink[v] : lowLink[w];
-                            lowLink_arr[v] = min(lowLink_arr[v],lowLink_arr[w]);
-                        else
-//                            lowLink[v] = lowLink[v] < preOrder_arr[w] ? lowLink[v] : preOrder_arr[w];
-                            lowLink_arr[v] = min(lowLink_arr[v],preOrder_arr[w]);
-                    }
-                }
-//                q.pop_back();
-		q_n--;
-                if (lowLink_arr[v] == preOrder_arr[v])
-                {
-                    set<int> scc;
-		    // int scc_val[sccQueue_n+1];
-		    // int scc_i = 0;
-		    // scc_val[scc_i++] = v;
-                    scc.insert(v);
-		    // scc_arr[v] = 1;
-//                    while (!sccQueue.empty() && preOrder_arr[sccQueue.back()] > preOrder_arr[v])
-                    while (sccQueue_n>0 && preOrder_arr[sccQueue_arr[sccQueue_n-1]] > preOrder_arr[v])
-                    {
-                       // int k = sccQueue.back();
-			int k = sccQueue_arr[--sccQueue_n];
-//                        sccQueue.pop_back();
-                        scc.insert(k);
-			// scc_arr[k] = 1;
-			// scc_val[scc_i++]=k;
-                    }
-
-                    //vector<NodeList> subAK = getSubGraph(scc);
-   //                  for (int ii=0;ii<scc_i;ii++)
-		 //    {
-			// int tmp = scc_val[ii];
-   //                      for (vector<int>::iterator iter = AK[tmp].begin(); iter != AK[tmp].end(); )
-			// { 
-   //                          if (scc_arr[*iter] == -1)
-   //                              iter = AK[tmp].erase(iter); // advances iter
-   //                          else
-   //                              ++iter; // don't remove
-   //                      }
-			// sccFound_arr[tmp] = 1;
-   //                  }
-
-                   for (int W : scc)
-                   {
-                       for (vector<int>::iterator iter = AK[W].begin(); iter != AK[W].end(); )
-                       {
-                           // if (scc_arr[*iter] == -1)
-                           if (scc.find(*iter) == scc.end())
-                               iter = AK[W].erase(iter); // advances iter
-                           else
-                               ++iter; // don't remove
-                       }
-			sccFound_arr[W] = 1;
-                   }
-
-                   runInSubGraph(scc);
-                    // runInSubGraph(scc_val, scc_i);
-
-//                    sccFound.insert(scc.begin(), scc.end());
-                }
-                else
+		while (q_n > 0)
 		{
 			//            v = q.back();
 			v = q_arr[q_n - 1];
@@ -275,56 +191,54 @@ void CircuitFinder::strongComponent()
 				if (lowLink_arr[v] == preOrder_arr[v])
 				{
 					set<int> scc;
-#ifdef _WIN64
-					int scc_val[10000];
-#else
-					int *scc_val = new int[sccQueue_n + 1];
-#endif
-					int scc_i = 0;
-					scc_val[scc_i++] = v;
+					// int scc_val[sccQueue_n+1];
+					// int scc_i = 0;
+					// scc_val[scc_i++] = v;
 					scc.insert(v);
-					scc_arr[v] = 1;
-					//                    while (!sccQueue.empty() && preOrder_arr[sccQueue.back()] > preOrder_arr[v])
+					// scc_arr[v] = 1;
+		//                    while (!sccQueue.empty() && preOrder_arr[sccQueue.back()] > preOrder_arr[v])
 					while (sccQueue_n > 0 && preOrder_arr[sccQueue_arr[sccQueue_n - 1]] > preOrder_arr[v])
 					{
-						//                        int k = sccQueue.back();
+						// int k = sccQueue.back();
 						int k = sccQueue_arr[--sccQueue_n];
 						//                        sccQueue.pop_back();
 						scc.insert(k);
-						scc_arr[k] = 1;
-						scc_val[scc_i++] = k;
+						// scc_arr[k] = 1;
+						// scc_val[scc_i++]=k;
 					}
 
 					//vector<NodeList> subAK = getSubGraph(scc);
-					for (int ii = 0; ii < scc_i; ii++)
+   //                  for (int ii=0;ii<scc_i;ii++)
+		 //    {
+			// int tmp = scc_val[ii];
+   //                      for (vector<int>::iterator iter = AK[tmp].begin(); iter != AK[tmp].end(); )
+			// { 
+   //                          if (scc_arr[*iter] == -1)
+   //                              iter = AK[tmp].erase(iter); // advances iter
+   //                          else
+   //                              ++iter; // don't remove
+   //                      }
+			// sccFound_arr[tmp] = 1;
+   //                  }
+
+					for (int W : scc)
 					{
-						int tmp = scc_val[ii];
-						for (vector<int>::iterator iter = AK[tmp].begin(); iter != AK[tmp].end(); )
+						for (vector<int>::iterator iter = AK[W].begin(); iter != AK[W].end(); )
 						{
-							if (scc_arr[*iter] == -1)
-								iter = AK[tmp].erase(iter); // advances iter
+							// if (scc_arr[*iter] == -1)
+							if (scc.find(*iter) == scc.end())
+								iter = AK[W].erase(iter); // advances iter
 							else
 								++iter; // don't remove
 						}
-						sccFound_arr[tmp] = 1;
+						sccFound_arr[W] = 1;
 					}
 
-					//                    for (int W : scc)
-					//                    {
-					//                        for (vector<int>::iterator iter = AK[W].begin(); iter != AK[W].end(); )
-					//                        {
-					//                            if (scc_arr[*iter] == -1)
-					//                                iter = AK[W].erase(iter); // advances iter
-					//                            else
-					//                                ++iter; // don't remove
-					//                        }
-					//			sccFound_arr[W] = 1;
-					//                    }
+					if (scc.size() > 2)
+						runInSubGraph(scc);
+					// runInSubGraph(scc_val, scc_i);
 
-					//                    runInSubGraph(scc);
-					runInSubGraph(scc_val, scc_i);
-
-					//                    sccFound.insert(scc.begin(), scc.end());
+//                    sccFound.insert(scc.begin(), scc.end());
 				}
 				else
 				{
@@ -343,14 +257,23 @@ void CircuitFinder::unblock(int U)
 {
 	Blocked[U] = false;
 
-	while (!B[U].empty()) {
-		int W = B[U].back();
-		B[U].pop_back();
+	//while (!B[U].empty()) {
+	//  int W = B[U].back();
+	//  B[U].pop_back();
+
+	//  if (Blocked[W]) {
+	//    unblock(W);
+	//  }
+	//}
+	while (sizeB[U] > 0) {
+		int W = B[U*10 + sizeB[U]];
+		sizeB[U]--;
 
 		if (Blocked[W]) {
 			unblock(W);
 		}
 	}
+
 }
 
 //�������뺯��
@@ -388,8 +311,8 @@ void CircuitFinder::loadTestData(string filename)
 			// m[accountOut] = vertexIndex++;
 			nodes.push_back(accountOut);
 			AK.push_back(vector<int>());
-			Blocked.push_back(false);
-			B.push_back(vector<int>());
+			//Blocked.push_back(false);
+			//B.push_back(vector<int>());
 		}
 
 		if (intHash.find(accountIn) == intHash.end())
@@ -399,14 +322,24 @@ void CircuitFinder::loadTestData(string filename)
 			intHash[accountIn] = vertexIndex++;
 			nodes.push_back(accountIn);
 			AK.push_back(vector<int>());
-			Blocked.push_back(false);
-			B.push_back(vector<int>());
+			//Blocked.push_back(false);
+			//B.push_back(vector<int>());
 		}
 
 		AK[intHash[accountOut]].push_back(intHash[accountIn]); // 400us
 	}
 	N = vertexIndex;
-	falseBlocked = Blocked;
+
+	B = (int*)malloc(sizeof(int) * N * 10);
+	sizeB = (int*)malloc(sizeof(int) * N);
+	Blocked = (bool*)malloc(sizeof(bool) * N);
+
+	for (int i = 0; i < N; i++)
+	{
+		Blocked[i] = false;
+		sizeB[i] = 0;
+	}
+	//falseBlocked = Blocked;
 #ifdef mydebug
 	outputTime("Load Data");
 	printMap();
@@ -513,9 +446,23 @@ bool CircuitFinder::circuit(int V)
 	}
 	else {
 		for (int W : AK[V]) {
-			auto IT = std::find(B[W].begin(), B[W].end(), V);
-			if (IT == B[W].end()) {
-				B[W].push_back(V);
+			//auto IT = std::find(B[W].begin(), B[W].end(), V);
+			//if (IT == B[W].end()) {
+			//    B[W].push_back(V);
+			//}
+			bool discovered = false;
+			for (int i = 0; i < sizeB[W]; i++)
+			{
+				if (B[W*10+i] == V)
+				{
+					discovered = true;
+					break;
+				}
+			}
+			if (!discovered)
+			{
+				sizeB[W]++;
+				B[W*10+sizeB[W]] = V;
 			}
 		}
 	}
@@ -596,93 +543,93 @@ void CircuitFinder::sortVector()
 //�ļ��������
 void CircuitFinder::printVector(string filename)
 {
-    ofstream fout(filename);
-    fout << circuitCount << endl;
-    // for (int i=0;i<5;i++)
-    // {
-    //     for (int j=0;j<resVect[i].size();j++)
-    //     {
-    //         fout << resVect[i][j][0];
-    //         for (int k=1;k<i+3;k++)
-    //             fout << "," << resVect[i][j][k];
-    //         fout << endl;
-    //     }
-    // }
-    int n_entry = 0;
-    for(int i=0;i<5;i++) n_entry+=resVect[i].size();
-    char *p = new char[n_entry*80];
-    char *pp = p;
-    // 长度为3
-    int idx = 0;
-    for (int j=0;j<resVect[idx].size();j++)
-    {
-        sprintf(pp,"%d,%d,%d\n",resVect[idx][j][idx],resVect[idx][j][1],resVect[idx][j][2]);
-        pp += intSize(resVect[idx][j][0])+intSize(resVect[idx][j][1])+intSize(resVect[idx][j][2])+3;
-    }
-    // 长度为4
-    idx = 1;
-    for (int j=0;j<resVect[idx].size();j++)
-    {
-        // int tmp[4] = {intSize(resVect[idx][j][0]), intSize(resVect[idx][j][1]), intSize(resVect[idx][j][2]), intSize(resVect[idx][j][3])};
-        // pp += append_uint_to_str(pp, resVect[idx][j][0], tmp[0]);
-        // pp += append_uint_to_str(pp, resVect[idx][j][1], tmp[1]);
-        // pp += append_uint_to_str(pp, resVect[idx][j][2], tmp[2]);
-        // pp += append_uint_to_str(pp, resVect[idx][j][3], tmp[3]);
-        // pp[-1] = '\n';
-        sprintf(pp,"%d,%d,%d,%d\n",resVect[idx][j][0],resVect[idx][j][1],resVect[idx][j][2],resVect[idx][j][3]);
-        pp += intSize(resVect[idx][j][0])+intSize(resVect[idx][j][1])+intSize(resVect[idx][j][2])+intSize(resVect[idx][j][3])+4;
-    }
-    // 长度为5
-    idx = 2;
-    for (int j=0;j<resVect[idx].size();j++)
-    {
-        int tmp[5] = {intSize(resVect[idx][j][0]), intSize(resVect[idx][j][1]), intSize(resVect[idx][j][2]), intSize(resVect[idx][j][3]), intSize(resVect[idx][j][4])};
-        pp += append_uint_to_str(pp, resVect[idx][j][0], tmp[0]);
-        pp += append_uint_to_str(pp, resVect[idx][j][1], tmp[1]);
-        pp += append_uint_to_str(pp, resVect[idx][j][2], tmp[2]);
-        pp += append_uint_to_str(pp, resVect[idx][j][3], tmp[3]);
-        pp += append_uint_to_str(pp, resVect[idx][j][4], tmp[4]);
-        pp[-1] = '\n';
-        // sprintf(pp,"%d,%d,%d,%d,%d\n",resVect[idx][j][0],resVect[idx][j][1],resVect[idx][j][2],resVect[idx][j][3],resVect[idx][j][4]);
-        // pp += intSize(resVect[idx][j][0])+intSize(resVect[idx][j][1])+intSize(resVect[idx][j][2])+intSize(resVect[idx][j][3])+intSize(resVect[idx][j][4])+5;
-    }
-    // // 长度为6
-    idx = 3;
-    for (int j=0;j<resVect[idx].size();j++)
-    {
-        int tmp[6] = {intSize(resVect[idx][j][0]), intSize(resVect[idx][j][1]), intSize(resVect[idx][j][2]), intSize(resVect[idx][j][3]), intSize(resVect[idx][j][4]),
-              intSize(resVect[idx][j][5])};
-        pp += append_uint_to_str(pp, resVect[idx][j][0], tmp[0]);
-        pp += append_uint_to_str(pp, resVect[idx][j][1], tmp[1]);
-        pp += append_uint_to_str(pp, resVect[idx][j][2], tmp[2]);
-        pp += append_uint_to_str(pp, resVect[idx][j][3], tmp[3]);
-        pp += append_uint_to_str(pp, resVect[idx][j][4], tmp[4]);
-        pp += append_uint_to_str(pp, resVect[idx][j][5], tmp[5]);
-        pp[-1] = '\n';
-        // sprintf(pp,"%d,%d,%d,%d,%d,%d\n",resVect[idx][j][0],resVect[idx][j][1],resVect[idx][j][2],resVect[idx][j][3],resVect[idx][j][4],resVect[idx][j][5]);
-        // pp += intSize(resVect[idx][j][0])+intSize(resVect[idx][j][1])+intSize(resVect[idx][j][2])+intSize(resVect[idx][j][3])+intSize(resVect[idx][j][4])+intSize(resVect[idx][j][5])+6;
-    }
-    // // 长度为7
-    idx = 4;
-    // printf("%d,%d\n", pp-p,resVect[idx].size());
-    for (int j=0;j<resVect[idx].size();j++)
-    {
-        int tmp[7] = {intSize(resVect[idx][j][0]), intSize(resVect[idx][j][1]), intSize(resVect[idx][j][2]), intSize(resVect[idx][j][3]), intSize(resVect[idx][j][4]),
-              intSize(resVect[idx][j][5]),intSize(resVect[idx][j][6])};
-        pp += append_uint_to_str(pp, resVect[idx][j][0], tmp[0]);
-        pp += append_uint_to_str(pp, resVect[idx][j][1], tmp[1]);
-        pp += append_uint_to_str(pp, resVect[idx][j][2], tmp[2]);
-        pp += append_uint_to_str(pp, resVect[idx][j][3], tmp[3]);
-        pp += append_uint_to_str(pp, resVect[idx][j][4], tmp[4]);
-        pp += append_uint_to_str(pp, resVect[idx][j][5], tmp[5]);
-        pp += append_uint_to_str(pp, resVect[idx][j][6], tmp[6]);
-        pp[-1] = '\n';
-        // sprintf(pp,"%d,%d,%d,%d,%d,%d,%d\n",resVect[idx][j][0],resVect[idx][j][1],resVect[idx][j][2],resVect[idx][j][3],resVect[idx][j][4],resVect[idx][j][5],resVect[idx][j][6]);
-        // pp += tmp[0]+tmp[1]+tmp[2]+tmp[3]+tmp[4]+tmp[5]+tmp[6]+7;
-    }
-    // printf("%d,%d\n", pp-p,n_entry);
-    fout.write(p,pp-p);
-    fout.close();
+	ofstream fout(filename);
+	fout << circuitCount << endl;
+	// for (int i=0;i<5;i++)
+	// {
+	//     for (int j=0;j<resVect[i].size();j++)
+	//     {
+	//         fout << resVect[i][j][0];
+	//         for (int k=1;k<i+3;k++)
+	//             fout << "," << resVect[i][j][k];
+	//         fout << endl;
+	//     }
+	// }
+	int n_entry = 0;
+	for (int i = 0; i < 5; i++) n_entry += resVect[i].size();
+	char* p = new char[n_entry * 80];
+	char* pp = p;
+	// 长度为3
+	int idx = 0;
+	for (int j = 0; j < resVect[idx].size(); j++)
+	{
+		sprintf(pp, "%d,%d,%d\n", resVect[idx][j][idx], resVect[idx][j][1], resVect[idx][j][2]);
+		pp += intSize(resVect[idx][j][0]) + intSize(resVect[idx][j][1]) + intSize(resVect[idx][j][2]) + 3;
+	}
+	// 长度为4
+	idx = 1;
+	for (int j = 0; j < resVect[idx].size(); j++)
+	{
+		// int tmp[4] = {intSize(resVect[idx][j][0]), intSize(resVect[idx][j][1]), intSize(resVect[idx][j][2]), intSize(resVect[idx][j][3])};
+		// pp += append_uint_to_str(pp, resVect[idx][j][0], tmp[0]);
+		// pp += append_uint_to_str(pp, resVect[idx][j][1], tmp[1]);
+		// pp += append_uint_to_str(pp, resVect[idx][j][2], tmp[2]);
+		// pp += append_uint_to_str(pp, resVect[idx][j][3], tmp[3]);
+		// pp[-1] = '\n';
+		sprintf(pp, "%d,%d,%d,%d\n", resVect[idx][j][0], resVect[idx][j][1], resVect[idx][j][2], resVect[idx][j][3]);
+		pp += intSize(resVect[idx][j][0]) + intSize(resVect[idx][j][1]) + intSize(resVect[idx][j][2]) + intSize(resVect[idx][j][3]) + 4;
+	}
+	// 长度为5
+	idx = 2;
+	for (int j = 0; j < resVect[idx].size(); j++)
+	{
+		int tmp[5] = { intSize(resVect[idx][j][0]), intSize(resVect[idx][j][1]), intSize(resVect[idx][j][2]), intSize(resVect[idx][j][3]), intSize(resVect[idx][j][4]) };
+		pp += append_uint_to_str(pp, resVect[idx][j][0], tmp[0]);
+		pp += append_uint_to_str(pp, resVect[idx][j][1], tmp[1]);
+		pp += append_uint_to_str(pp, resVect[idx][j][2], tmp[2]);
+		pp += append_uint_to_str(pp, resVect[idx][j][3], tmp[3]);
+		pp += append_uint_to_str(pp, resVect[idx][j][4], tmp[4]);
+		pp[-1] = '\n';
+		// sprintf(pp,"%d,%d,%d,%d,%d\n",resVect[idx][j][0],resVect[idx][j][1],resVect[idx][j][2],resVect[idx][j][3],resVect[idx][j][4]);
+		// pp += intSize(resVect[idx][j][0])+intSize(resVect[idx][j][1])+intSize(resVect[idx][j][2])+intSize(resVect[idx][j][3])+intSize(resVect[idx][j][4])+5;
+	}
+	// // 长度为6
+	idx = 3;
+	for (int j = 0; j < resVect[idx].size(); j++)
+	{
+		int tmp[6] = { intSize(resVect[idx][j][0]), intSize(resVect[idx][j][1]), intSize(resVect[idx][j][2]), intSize(resVect[idx][j][3]), intSize(resVect[idx][j][4]),
+			  intSize(resVect[idx][j][5]) };
+		pp += append_uint_to_str(pp, resVect[idx][j][0], tmp[0]);
+		pp += append_uint_to_str(pp, resVect[idx][j][1], tmp[1]);
+		pp += append_uint_to_str(pp, resVect[idx][j][2], tmp[2]);
+		pp += append_uint_to_str(pp, resVect[idx][j][3], tmp[3]);
+		pp += append_uint_to_str(pp, resVect[idx][j][4], tmp[4]);
+		pp += append_uint_to_str(pp, resVect[idx][j][5], tmp[5]);
+		pp[-1] = '\n';
+		// sprintf(pp,"%d,%d,%d,%d,%d,%d\n",resVect[idx][j][0],resVect[idx][j][1],resVect[idx][j][2],resVect[idx][j][3],resVect[idx][j][4],resVect[idx][j][5]);
+		// pp += intSize(resVect[idx][j][0])+intSize(resVect[idx][j][1])+intSize(resVect[idx][j][2])+intSize(resVect[idx][j][3])+intSize(resVect[idx][j][4])+intSize(resVect[idx][j][5])+6;
+	}
+	// // 长度为7
+	idx = 4;
+	// printf("%d,%d\n", pp-p,resVect[idx].size());
+	for (int j = 0; j < resVect[idx].size(); j++)
+	{
+		int tmp[7] = { intSize(resVect[idx][j][0]), intSize(resVect[idx][j][1]), intSize(resVect[idx][j][2]), intSize(resVect[idx][j][3]), intSize(resVect[idx][j][4]),
+			  intSize(resVect[idx][j][5]),intSize(resVect[idx][j][6]) };
+		pp += append_uint_to_str(pp, resVect[idx][j][0], tmp[0]);
+		pp += append_uint_to_str(pp, resVect[idx][j][1], tmp[1]);
+		pp += append_uint_to_str(pp, resVect[idx][j][2], tmp[2]);
+		pp += append_uint_to_str(pp, resVect[idx][j][3], tmp[3]);
+		pp += append_uint_to_str(pp, resVect[idx][j][4], tmp[4]);
+		pp += append_uint_to_str(pp, resVect[idx][j][5], tmp[5]);
+		pp += append_uint_to_str(pp, resVect[idx][j][6], tmp[6]);
+		pp[-1] = '\n';
+		// sprintf(pp,"%d,%d,%d,%d,%d,%d,%d\n",resVect[idx][j][0],resVect[idx][j][1],resVect[idx][j][2],resVect[idx][j][3],resVect[idx][j][4],resVect[idx][j][5],resVect[idx][j][6]);
+		// pp += tmp[0]+tmp[1]+tmp[2]+tmp[3]+tmp[4]+tmp[5]+tmp[6]+7;
+	}
+	// printf("%d,%d\n", pp-p,n_entry);
+	fout.write(p, pp - p);
+	fout.close();
 }
 
 //���nodes�������Ը�������
@@ -695,23 +642,24 @@ void CircuitFinder::printMap()
 }
 
 //��һ��ǿ��ͨ�����е������еĽڵ㣬����circuit�һ�����
-void CircuitFinder::runInSubGraph(set<int>& s)
+void CircuitFinder::runInSubGraph(set<int> s)
 {
-   for (set<int>::iterator iter=s.begin(); iter!=s.end();iter++)
-   {
-       S = *iter;
-       Blocked = falseBlocked;
-       for (set<int>::iterator inner_iter = iter; inner_iter != s.end(); inner_iter++) {
-           B[*(inner_iter)].clear();
-       }
-       circuit(S);
+	auto end = prev(prev(s.end()));
+	for (set<int>::iterator iter = s.begin(); iter != end; iter++)
+	{
+		S = *iter;
+		for (set<int>::iterator inner_iter = iter; inner_iter != s.end(); inner_iter++) {
+			sizeB[*(inner_iter)] = 0;
+			Blocked[*(inner_iter)] = false;
+		}
+		circuit(S);
 
 #ifdef mydebug
-   outputTime("A S cycle");
-   cout << S << endl;
+		outputTime("A S cycle");
+		cout << S << endl;
 #endif
 
-   }
+	}
 }
 
 void CircuitFinder::runInSubGraph(int* s, int len)
@@ -719,11 +667,11 @@ void CircuitFinder::runInSubGraph(int* s, int len)
 	for (int i = 0; i < len; i++)
 	{
 		S = s[i];
-		Blocked = falseBlocked;
 		for (int j = i; j < len; j++)
 		{
 			//        for (set<int>::iterator inner_iter = iter; inner_iter != s.end(); inner_iter++) {
-			B[s[j]].clear();
+			sizeB[s[j]] = 0;
+			Blocked[s[j]] = false;
 		}
 		circuit(S);
 
@@ -823,9 +771,9 @@ Timer:startTimer("overall");
 #endif
 
 #ifdef _WIN64
-	cf.loadTestData("../data/test_data.txt");
+	cf.loadTestData("./data/77409/test_data.txt");
 #elif defined TEST
-    cf.loadTestData("./data/38252/test_data.txt");
+	cf.loadTestData("./data/38252/test_data.txt");
 #else
 	cf.loadTestData("/data/test_data.txt");
 #endif
