@@ -223,14 +223,14 @@ void CircuitFinder::strongComponent()
 
 					for (int W : scc)
 					{
-						for (vector<int>::iterator iter = AK[W].begin(); iter != AK[W].end(); )
-						{
-							// if (scc_arr[*iter] == -1)
-							if (scc.find(*iter) == scc.end())
-								iter = AK[W].erase(iter); // advances iter
-							else
-								++iter; // don't remove
-						}
+						//for (vector<int>::iterator iter = AK[W].begin(); iter != AK[W].end(); )
+						//{
+						//	// if (scc_arr[*iter] == -1)
+						//	if (scc.find(*iter) == scc.end())
+						//		iter = AK[W].erase(iter); // advances iter
+						//	else
+						//		++iter; // don't remove
+						//}
 						sccFound_arr[W] = 1;
 					}
 
@@ -290,7 +290,11 @@ void CircuitFinder::loadTestData(string filename)
 	indata.open(filename);
 	string line;
 	int vertexIndex = 0;
-	int AK_ptr[280000];
+	int* tempAK = (int*)malloc(sizeof(int) * 280000 * 10);
+	int* sizeAK = (int*)malloc(sizeof(int) * 280000);
+	set<int> tempNodes;
+	unordered_map<int, int> reverseNodes;
+
 	while (getline(indata, line)) {
 		char* s = &line[0];
 		int tmp = 0;
@@ -309,8 +313,10 @@ void CircuitFinder::loadTestData(string filename)
 		{
 			intHash[accountOut] = vertexIndex++;
 			// m[accountOut] = vertexIndex++;
-			nodes.push_back(accountOut);
-			AK.push_back(vector<int>());
+			//nodes.push_back(accountOut);
+			tempNodes.insert(accountOut);
+			sizeAK[accountOut] = 0;
+			//AK.push_back(vector<int>());
 			//Blocked.push_back(false);
 			//B.push_back(vector<int>());
 		}
@@ -320,13 +326,16 @@ void CircuitFinder::loadTestData(string filename)
 		{
 			// m[accountIn] = vertexIndex++;
 			intHash[accountIn] = vertexIndex++;
-			nodes.push_back(accountIn);
-			AK.push_back(vector<int>());
+			tempNodes.insert(accountIn);
+			sizeAK[accountIn] = 0;
+			//AK.push_back(vector<int>());
 			//Blocked.push_back(false);
 			//B.push_back(vector<int>());
 		}
 
-		AK[intHash[accountOut]].push_back(intHash[accountIn]); // 400us
+		//AK[intHash[accountOut]].push_back(intHash[accountIn]); // 400us
+		sizeAK[accountOut]++;
+		tempAK[accountOut * 10 + sizeAK[accountOut]] = accountIn;
 	}
 	N = vertexIndex;
 
@@ -334,11 +343,27 @@ void CircuitFinder::loadTestData(string filename)
 	sizeB = (int*)malloc(sizeof(int) * N);
 	Blocked = (bool*)malloc(sizeof(bool) * N);
 
+	nodes.resize(tempNodes.size());
+	copy(tempNodes.begin(), tempNodes.end(), nodes.begin());
+
 	for (int i = 0; i < N; i++)
 	{
 		Blocked[i] = false;
 		sizeB[i] = 0;
+		reverseNodes[nodes[i]] = i;
 	}
+
+	AK.resize(N);
+	for (int i = 0; i < N; i++)
+	{
+		for (int j = 0; j < sizeAK[nodes[i]]; j++)
+		{
+			AK[i].push_back(reverseNodes[tempAK[nodes[i] * 10 + j]]);
+		}
+	}
+
+	free(tempAK);
+	free(sizeAK);
 	//falseBlocked = Blocked;
 #ifdef mydebug
 	outputTime("Load Data");
