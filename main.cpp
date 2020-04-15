@@ -86,6 +86,7 @@ class CircuitFinder
 	void outputTime(string info);
 	void sortVector();
 	void printVector(string filename);
+	void removeNode(int V);
 	void printMap();
 	void strongComponent();
 	void runInSubGraph(set<int> s);
@@ -267,7 +268,7 @@ void CircuitFinder::unblock(int U)
 	//    unblock(W);
 	//  }
 	//}
-	while (sizeB[U] > 0) {
+	while (sizeB[U]) {
 		int W = B[U*10 + sizeB[U]];
 		sizeB[U]--;
 
@@ -467,7 +468,7 @@ bool CircuitFinder::circuit(int V)
 	if (circuitLen < 6)
 	{
 		for (int W : AK[V]) {
-			if (W > S && !Blocked[W])
+			if (!Blocked[W])
 				F = circuit(W)||F;
 			else if (W == S) {
 				output();
@@ -717,6 +718,7 @@ void CircuitFinder::runInSubGraph(set<int> s)
 		}
 
 		circuit(S);
+		removeNode(S);
 
 		for (int W : inAK[S])
 		{
@@ -752,6 +754,13 @@ void CircuitFinder::runInSubGraph(int* s, int len)
 	}
 }
 
+void CircuitFinder::removeNode(int V)
+{
+	for (int in : inAK[V])
+	{
+		AK[in].erase(find(AK[in].begin(), AK[in].end(), V));
+	}
+}
 
 //�������
 void CircuitFinder::run()
