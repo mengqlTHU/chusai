@@ -467,7 +467,7 @@ bool CircuitFinder::circuit(int V)
 	auto circuitLen = Stack.size();
 	if (circuitLen < 6)
 	{
-		for (int W : AK[V]) {
+		for (const int W : AK[V]) {
 			if (!Blocked[W])
 				F = circuit(W)||F;
 			else if (W == S) {
@@ -478,7 +478,7 @@ bool CircuitFinder::circuit(int V)
 	}
 	else if (circuitLen == 6)
 	{
-		for (int W : AK[V]) {
+		for (const int W : AK[V]) {
 			if (!Blocked[W] && hasInEdge[W])
 			{
 				Stack.push_back(W);
@@ -499,7 +499,7 @@ bool CircuitFinder::circuit(int V)
 		unblock(V);
 	}
 	else {
-		for (int W : AK[V]) {
+		for (const int W : AK[V]) {
 			//auto IT = std::find(B[W].begin(), B[W].end(), V);
 			//if (IT == B[W].end()) {
 			//    B[W].push_back(V);
@@ -700,11 +700,12 @@ void CircuitFinder::printMap()
 //��һ��ǿ��ͨ�����е������еĽڵ㣬����circuit�һ�����
 void CircuitFinder::runInSubGraph(set<int> s)
 {
-	auto end = prev(prev(s.end()));
-	for (set<int>::iterator iter = s.begin(); iter != end; iter++)
+	vector<int> scc(s.size());
+	copy(s.begin(), s.end(), scc.begin());
+	for (vector<int>::iterator iter = scc.begin(); iter != scc.end()-2; iter++)
 	{
 		S = *iter;
-		for (set<int>::iterator inner_iter = iter; inner_iter != s.end(); inner_iter++) {
+		for (vector<int>::iterator inner_iter = iter; inner_iter != scc.end(); inner_iter++) {
 			sizeB[*(inner_iter)] = 0;
 			Blocked[*(inner_iter)] = false;
 		}
