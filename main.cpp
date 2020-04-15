@@ -56,10 +56,12 @@ int append_uint_to_str(char* s, unsigned int i, int size)
 class CircuitFinder
 {
 	vector<vector<int>> AK;
+	vector<vector<int>> inAK;
 	//vector<NodeList> subAK;
 	vector<int> Stack;
 	//std::vector<bool> Blocked;
 	bool* Blocked;
+	bool* hasInEdge;
 	//std::vector<bool> falseBlocked;
 	//std::vector<vector<int>> B;
 	int* B;
@@ -345,6 +347,7 @@ void CircuitFinder::loadTestData(string filename)
 	B = (int*)malloc(sizeof(int) * N * 10);
 	sizeB = (int*)malloc(sizeof(int) * N);
 	Blocked = (bool*)malloc(sizeof(bool) * N);
+	hasInEdge = (bool*)malloc(sizeof(bool) * N);
 
 	nodes.resize(tempNodes.size());
 	copy(tempNodes.begin(), tempNodes.end(), nodes.begin());
@@ -352,15 +355,19 @@ void CircuitFinder::loadTestData(string filename)
 	for (int i = 0; i < N; i++)
 	{
 		Blocked[i] = false;
+		hasInEdge[i] = false;
 		sizeB[i] = 0;
 		reverseNodes[nodes[i]] = i;
 	}
 
 	AK.resize(N);
+	inAK.resize(N);
 
 	for (int i = 0; i < recordIndex; i++)
 	{
 		AK[reverseNodes[outArr[i]]].push_back(reverseNodes[inArr[i]]);
+		if (reverseNodes[outArr[i]]> reverseNodes[inArr[i]])
+			inAK[reverseNodes[inArr[i]]].push_back(reverseNodes[outArr[i]]);
 	}
 
 	for (int i = 0; i < N; i++)
@@ -457,23 +464,29 @@ bool CircuitFinder::circuit(int V)
 	Blocked[V] = true;
 
 	auto circuitLen = Stack.size();
-	if (circuitLen < 7)
+	if (circuitLen < 6)
 	{
 		for (int W : AK[V]) {
 			if (W > S && !Blocked[W])
-				F = circuit(W) || F;
+				F = circuit(W)||F;
 			else if (W == S) {
 				output();
 				F = true;
 			}
 		}
 	}
-	else if (circuitLen == 7)
+	else if (circuitLen == 6)
 	{
 		for (int W : AK[V]) {
-			if (W == S) {
+			if (!Blocked[W] && hasInEdge[W])
+			{
+				Stack.push_back(W);
 				output();
-				break;
+				Stack.pop_back();
+				unblock(W);
+			}
+			else if (W == S) {
+				output();
 			}
 		}
 		F = true;
@@ -694,7 +707,21 @@ void CircuitFinder::runInSubGraph(set<int> s)
 			sizeB[*(inner_iter)] = 0;
 			Blocked[*(inner_iter)] = false;
 		}
+
+		if (inAK[S].size() == 0)
+			continue;
+
+		for (int W : inAK[S])
+		{
+			hasInEdge[W] = true;
+		}
+
 		circuit(S);
+
+		for (int W : inAK[S])
+		{
+			hasInEdge[W] = false;
+		}
 
 #ifdef mydebug
 		outputTime("A S cycle");
