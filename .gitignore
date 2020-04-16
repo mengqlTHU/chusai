@@ -72,9 +72,12 @@ Thumbs.db
 *.exe
 
 sftp-config.json
-production.cpp
 
-.vscode
-Debug
-x64
-.vs
+perf.*
+test
+log
+FlameGraph
+data
+bigData
+nohup.out
+answer*
