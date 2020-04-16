@@ -78,3 +78,5 @@ production.cpp
 Debug
 x64
 .vs
+
+*.txt
