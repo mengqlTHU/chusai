@@ -729,8 +729,8 @@ void CircuitFinder::runInSubGraph(set<int> s)
 		//	sizeB[*(inner_iter)] = 0;
 		//	Blocked[*(inner_iter)] = false;
 		//}
-		memset(Blocked, false, N * sizeof(*Blocked));
-		memset(sizeB, 0, N * sizeof(*sizeB));
+		memset(Blocked + S, false, (N - S) * sizeof(*Blocked));
+		memset(sizeB + S, 0, (N - S) * sizeof(*sizeB));
 
 		if (inAK[S].size() == 0)
 			continue;
@@ -820,8 +820,8 @@ void CircuitFinder::run()
 			//	Blocked[I] = false;
 			//	sizeB[I] = 0;
 			//}
-			memset(Blocked, false, N * sizeof(*Blocked));
-			memset(sizeB, 0, N * sizeof(*sizeB));
+			memset(Blocked+S, false, (N-S) * sizeof(*Blocked));
+			memset(sizeB+S, 0, (N-S) * sizeof(*sizeB));
 			for (int W : inAK[S])
 			{
 				if (W > S)
@@ -916,8 +916,8 @@ Timer:startTimer("overall");
 #endif
 
 #ifdef _WIN64
-	cf.loadTestData("./data/54/test_data.txt");
-	//cf.loadTestData("./test_data.txt");
+	//cf.loadTestData("./data/54/test_data.txt");
+	cf.loadTestData("./test_data.txt");
 #elif defined TEST
 	cf.loadTestData("./data/38252/test_data.txt");
 #else
