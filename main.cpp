@@ -380,7 +380,7 @@ void CircuitFinder::loadTestData(string filename)
 		sort(AK[i].begin(), AK[i].end());
 	}
 
-	if (((double)recordIndex / (double)N) > 3)
+	if (((double)recordIndex / (double)N / (double)N) > 0.00005)
 		isDenseGraph = true;
 	else
 		isDenseGraph = false;
@@ -621,16 +621,16 @@ void CircuitFinder::printVector(string filename)
 {
 	ofstream fout(filename);
 	fout << circuitCount << endl;
-	// for (int i=0;i<5;i++)
-	// {
-	//     for (int j=0;j<resVect[i].size();j++)
-	//     {
-	//         fout << resVect[i][j][0];
-	//         for (int k=1;k<i+3;k++)
-	//             fout << "," << resVect[i][j][k];
-	//         fout << endl;
-	//     }
-	// }
+	 //for (int i=0;i<5;i++)
+	 //{
+	 //    for (int j=0;j<resVect[i].size();j++)
+	 //    {
+	 //        fout << resVect[i][j][0];
+	 //        for (int k=1;k<i+3;k++)
+	 //            fout << "," << resVect[i][j][k];
+	 //        fout << endl;
+	 //    }
+	 //}
 	int n_entry = 0;
 	for (int i = 0; i < 5; i++) n_entry += resVect[i].size();
 	char* p = new char[n_entry * 80];
@@ -725,10 +725,12 @@ void CircuitFinder::runInSubGraph(set<int> s)
 	for (vector<int>::iterator iter = scc.begin(); iter != scc.end() - 2; iter++)
 	{
 		S = *iter;
-		for (vector<int>::iterator inner_iter = iter; inner_iter != scc.end(); inner_iter++) {
-			sizeB[*(inner_iter)] = 0;
-			Blocked[*(inner_iter)] = false;
-		}
+		//for (vector<int>::iterator inner_iter = iter; inner_iter != scc.end(); inner_iter++) {
+		//	sizeB[*(inner_iter)] = 0;
+		//	Blocked[*(inner_iter)] = false;
+		//}
+		memset(Blocked, false, N * sizeof(*Blocked));
+		memset(sizeB, 0, N * sizeof(*sizeB));
 
 		if (inAK[S].size() == 0)
 			continue;
@@ -743,11 +745,6 @@ void CircuitFinder::runInSubGraph(set<int> s)
 					if (Y > S)
 						hasInEdge[Y] = true;
 			}
-			//hasInEdge[W] = true;
-			//hasOneStepEdge[W] = true;
-			//for (int Y : inAK[W])
-			//	hasInEdge[Y] = true;
-
 		}
 
 		circuit(S);
@@ -763,10 +760,6 @@ void CircuitFinder::runInSubGraph(set<int> s)
 					if (Y > S)
 						hasInEdge[Y] = false;
 			}
-			//hasInEdge[W] = false;
-			//hasOneStepEdge[W] = false;
-			//for (int Y : inAK[W])
-			//	hasInEdge[Y] = false;
 		}
 
 #ifdef mydebug
@@ -823,10 +816,12 @@ void CircuitFinder::run()
 				S++;
 				continue;
 			}
-			for (int I = S; I < N; ++I) {
-				Blocked[I] = false;
-				sizeB[I] = 0;
-			}
+			//for (int I = S; I < N; ++I) {
+			//	Blocked[I] = false;
+			//	sizeB[I] = 0;
+			//}
+			memset(Blocked, false, N * sizeof(*Blocked));
+			memset(sizeB, 0, N * sizeof(*sizeB));
 			for (int W : inAK[S])
 			{
 				if (W > S)
@@ -921,7 +916,8 @@ Timer:startTimer("overall");
 #endif
 
 #ifdef _WIN64
-	cf.loadTestData("./data/1004812/test_data.txt");
+	cf.loadTestData("./data/54/test_data.txt");
+	//cf.loadTestData("./test_data.txt");
 #elif defined TEST
 	cf.loadTestData("./data/38252/test_data.txt");
 #else
