@@ -1,1 +1,2 @@
-g++ -O3 main.cpp -o test -lpthread && ./test
+g++ -O3 main.cpp -o test -lpthread && time -p ./test
+#vimdiff /projects/student/result.txt answer_small.txt

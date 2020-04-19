@@ -19,7 +19,7 @@ using namespace chrono;
 
 #define TEST
 
-//#define MYTIME
+#define MYTIME
 
 // #define TIMERS
 
