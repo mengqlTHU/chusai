@@ -81,3 +81,9 @@ data
 bigData
 nohup.out
 answer*
+.vscode
+Debug
+x64
+.vs
+
+*.txt

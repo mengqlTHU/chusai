@@ -12,6 +12,7 @@
 #include <set>
 #include <chrono>
 #include <assert.h>
+#include <string.h>
 
 using namespace std;
 using namespace chrono;
@@ -56,10 +57,13 @@ int append_uint_to_str(char* s, unsigned int i, int size)
 class CircuitFinder
 {
 	vector<vector<int>> AK;
+	vector<vector<int>> inAK;
 	//vector<NodeList> subAK;
 	vector<int> Stack;
 	//std::vector<bool> Blocked;
 	bool* Blocked;
+	bool* hasInEdge;
+	bool* hasOneStepEdge;
 	//std::vector<bool> falseBlocked;
 	//std::vector<vector<int>> B;
 	int* B;
@@ -70,6 +74,7 @@ class CircuitFinder
 	int N;
 	int circuitCount;
 	int S;
+	bool isDenseGraph;
 	time_point<system_clock, nanoseconds> start;
 
 	void unblock(int U);
@@ -84,6 +89,7 @@ class CircuitFinder
 	void outputTime(string info);
 	void sortVector();
 	void printVector(string filename);
+	void removeNode(int V);
 	void printMap();
 	void strongComponent();
 	void runInSubGraph(set<int> s);
@@ -111,15 +117,15 @@ void CircuitFinder::strongComponent()
 	//    set<int> sccFound;
 	//    vector<int> sccQueue;
 #ifdef _WIN64
-	const int n = 40000;
-	int preOrder_arr[n];
-	int sccFound_arr[n];
-	int lowLink_arr[n];
-	int q_arr[n];
+	//const int n = 1000000;
+	int* preOrder_arr = new int[N];
+	int* sccFound_arr = new int[N];
+	int* lowLink_arr = new int[N];
+	int* q_arr = new int[N];
 	int q_n = 0;
-	int sccQueue_arr[n];
+	int* sccQueue_arr = new int[N];
 	int sccQueue_n = 0;
-	int scc_arr[n];
+	int* scc_arr = new int[N];;
 #else
 	int* preOrder_arr = new int[N];
 	int* sccFound_arr = new int[N];
@@ -265,8 +271,8 @@ void CircuitFinder::unblock(int U)
 	//    unblock(W);
 	//  }
 	//}
-	while (sizeB[U] > 0) {
-		int W = B[U*10 + sizeB[U]];
+	while (sizeB[U]) {
+		int W = B[U * 10 + sizeB[U]];
 		sizeB[U]--;
 
 		if (Blocked[W]) {
@@ -290,7 +296,14 @@ void CircuitFinder::loadTestData(string filename)
 	indata.open(filename);
 	string line;
 	int vertexIndex = 0;
-	int AK_ptr[280000];
+	int recordIndex = 0;
+	//int* tempAK = (int*)malloc(sizeof(int) * INT32_MAX * 50);
+	//int* sizeAK = (int*)malloc(sizeof(int) * INT32_MAX);
+	int* outArr = (int*)malloc(sizeof(int) * 280000);
+	int* inArr = (int*)malloc(sizeof(int) * 280000);
+	set<int> tempNodes;
+	unordered_map<int, int> reverseNodes;
+
 	while (getline(indata, line)) {
 		char* s = &line[0];
 		int tmp = 0;
@@ -304,41 +317,86 @@ void CircuitFinder::loadTestData(string filename)
 		{
 			accountIn = (*s++ - '0') + accountIn * 10;
 		}
+		outArr[recordIndex] = accountOut;
+		inArr[recordIndex] = accountIn;
+		recordIndex++;
+
 		if (intHash.find(accountOut) == intHash.end())
-			// if (!m.count(accountOut))
 		{
 			intHash[accountOut] = vertexIndex++;
-			// m[accountOut] = vertexIndex++;
-			nodes.push_back(accountOut);
-			AK.push_back(vector<int>());
+			//nodes.push_back(accountOut);
+			tempNodes.insert(accountOut);
+			//sizeAK[accountOut] = 0;
+			//AK.push_back(vector<int>());
 			//Blocked.push_back(false);
 			//B.push_back(vector<int>());
 		}
 
 		if (intHash.find(accountIn) == intHash.end())
-			// if (!m.count(accountIn)) // 1700us
 		{
-			// m[accountIn] = vertexIndex++;
 			intHash[accountIn] = vertexIndex++;
-			nodes.push_back(accountIn);
-			AK.push_back(vector<int>());
+			tempNodes.insert(accountIn);
+			//sizeAK[accountIn] = 0;
+			//AK.push_back(vector<int>());
 			//Blocked.push_back(false);
 			//B.push_back(vector<int>());
 		}
 
-		AK[intHash[accountOut]].push_back(intHash[accountIn]); // 400us
+		//AK[intHash[accountOut]].push_back(intHash[accountIn]); // 400us
+		//tempAK[accountOut * 50 + sizeAK[accountOut]] = accountIn;
+		//sizeAK[accountOut]++;
 	}
 	N = vertexIndex;
 
 	B = (int*)malloc(sizeof(int) * N * 10);
 	sizeB = (int*)malloc(sizeof(int) * N);
 	Blocked = (bool*)malloc(sizeof(bool) * N);
+	hasInEdge = (bool*)malloc(sizeof(bool) * N);
+	hasOneStepEdge = (bool*)malloc(sizeof(bool) * N);
+
+	nodes.resize(tempNodes.size());
+	copy(tempNodes.begin(), tempNodes.end(), nodes.begin());
 
 	for (int i = 0; i < N; i++)
 	{
 		Blocked[i] = false;
+		hasInEdge[i] = false;
+		hasOneStepEdge[i] = false;
 		sizeB[i] = 0;
+		reverseNodes[nodes[i]] = i;
 	}
+
+	AK.resize(N);
+	inAK.resize(N);
+
+	for (int i = 0; i < recordIndex; i++)
+	{
+		AK[reverseNodes[outArr[i]]].push_back(reverseNodes[inArr[i]]);
+		//if (reverseNodes[outArr[i]]> reverseNodes[inArr[i]])
+		inAK[reverseNodes[inArr[i]]].push_back(reverseNodes[outArr[i]]);
+	}
+
+	for (int i = 0; i < N; i++)
+	{
+		sort(AK[i].begin(), AK[i].end());
+	}
+
+	if (((double)recordIndex / (double)N / (double)N) > 0.00005)
+		isDenseGraph = true;
+	else
+		isDenseGraph = false;
+
+	//for (int i = 0; i < N; i++)
+	//{
+	//	for (int j = 0; j < sizeAK[nodes[i]]; j++)
+	//	{
+	//		AK[i].push_back(reverseNodes[tempAK[nodes[i] * 50 + j]]);
+	//	}
+	//	sort(AK[i].begin(), AK[i].end());
+	//}
+
+	free(outArr);
+	free(inArr);
 	//falseBlocked = Blocked;
 #ifdef mydebug
 	outputTime("Load Data");
@@ -417,10 +475,10 @@ bool CircuitFinder::circuit(int V)
 	Blocked[V] = true;
 
 	auto circuitLen = Stack.size();
-	if (circuitLen < 7)
+	if (circuitLen < 5)
 	{
-		for (int W : AK[V]) {
-			if (W > S && !Blocked[W])
+		for (const int W : AK[V]) {
+			if (!Blocked[W])
 				F = circuit(W) || F;
 			else if (W == S) {
 				output();
@@ -428,12 +486,29 @@ bool CircuitFinder::circuit(int V)
 			}
 		}
 	}
-	else if (circuitLen == 7)
+	else if (circuitLen == 5)
 	{
-		for (int W : AK[V]) {
+		for (const int W : AK[V]) {
+			if (!Blocked[W] && hasInEdge[W])
+				circuit(W);
+			else if (W == S) {
+				output();
+			}
+		}
+		F = true;
+	}
+	else if (circuitLen == 6)
+	{
+		for (const int W : AK[V]) {
 			if (W == S) {
 				output();
-				break;
+			}
+			else if (!Blocked[W] && hasOneStepEdge[W])
+			{
+				Stack.push_back(W);
+				output();
+				Stack.pop_back();
+				unblock(W);
 			}
 		}
 		F = true;
@@ -445,7 +520,7 @@ bool CircuitFinder::circuit(int V)
 		unblock(V);
 	}
 	else {
-		for (int W : AK[V]) {
+		for (const int W : AK[V]) {
 			//auto IT = std::find(B[W].begin(), B[W].end(), V);
 			//if (IT == B[W].end()) {
 			//    B[W].push_back(V);
@@ -453,7 +528,7 @@ bool CircuitFinder::circuit(int V)
 			bool discovered = false;
 			for (int i = 0; i < sizeB[W]; i++)
 			{
-				if (B[W*10+i] == V)
+				if (B[W * 10 + i] == V)
 				{
 					discovered = true;
 					break;
@@ -462,7 +537,7 @@ bool CircuitFinder::circuit(int V)
 			if (!discovered)
 			{
 				sizeB[W]++;
-				B[W*10+sizeB[W]] = V;
+				B[W * 10 + sizeB[W]] = V;
 			}
 		}
 	}
@@ -517,10 +592,12 @@ void CircuitFinder::output()
 	if (circuitLen > 2)
 	{
 		resVect[circuitLen - 3].push_back(vector<int>());
-		int idOfMin = findMin();
+		//int idOfMin = findMin();
+		int idOfMin = 0;
 		for (int i = idOfMin; i < circuitLen + idOfMin; i++)
 		{
-			auto I = Stack.begin() + (i % circuitLen);
+			//auto I = Stack.begin() + (i % circuitLen);
+			auto I = Stack.begin() + i;
 			resVect[circuitLen - 3].back().push_back(nodes[*I]);
 		}
 		circuitCount += 1;
@@ -545,16 +622,16 @@ void CircuitFinder::printVector(string filename)
 {
 	ofstream fout(filename);
 	fout << circuitCount << endl;
-	// for (int i=0;i<5;i++)
-	// {
-	//     for (int j=0;j<resVect[i].size();j++)
-	//     {
-	//         fout << resVect[i][j][0];
-	//         for (int k=1;k<i+3;k++)
-	//             fout << "," << resVect[i][j][k];
-	//         fout << endl;
-	//     }
-	// }
+	 //for (int i=0;i<5;i++)
+	 //{
+	 //    for (int j=0;j<resVect[i].size();j++)
+	 //    {
+	 //        fout << resVect[i][j][0];
+	 //        for (int k=1;k<i+3;k++)
+	 //            fout << "," << resVect[i][j][k];
+	 //        fout << endl;
+	 //    }
+	 //}
 	int n_entry = 0;
 	for (int i = 0; i < 5; i++) n_entry += resVect[i].size();
 	char* p = new char[n_entry * 80];
@@ -644,15 +721,47 @@ void CircuitFinder::printMap()
 //��һ��ǿ��ͨ�����е������еĽڵ㣬����circuit�һ�����
 void CircuitFinder::runInSubGraph(set<int> s)
 {
-	auto end = prev(prev(s.end()));
-	for (set<int>::iterator iter = s.begin(); iter != end; iter++)
+	vector<int> scc(s.size());
+	copy(s.begin(), s.end(), scc.begin());
+	for (vector<int>::iterator iter = scc.begin(); iter != scc.end() - 2; iter++)
 	{
 		S = *iter;
-		for (set<int>::iterator inner_iter = iter; inner_iter != s.end(); inner_iter++) {
-			sizeB[*(inner_iter)] = 0;
-			Blocked[*(inner_iter)] = false;
+		//for (vector<int>::iterator inner_iter = iter; inner_iter != scc.end(); inner_iter++) {
+		//	sizeB[*(inner_iter)] = 0;
+		//	Blocked[*(inner_iter)] = false;
+		//}
+		memset(Blocked + S, false, (N - S) * sizeof(*Blocked));
+		memset(sizeB + S, 0, (N - S) * sizeof(*sizeB));
+
+		if (inAK[S].size() == 0)
+			continue;
+
+		for (int W : inAK[S])
+		{
+			if (W > S)
+			{
+				hasInEdge[W] = true;
+				hasOneStepEdge[W] = true;
+				for (int Y : inAK[W])
+					if (Y > S)
+						hasInEdge[Y] = true;
+			}
 		}
+
 		circuit(S);
+		removeNode(S);
+
+		for (int W : inAK[S])
+		{
+			if (W > S)
+			{
+				hasInEdge[W] = false;
+				hasOneStepEdge[W] = false;
+				for (int Y : inAK[W])
+					if (Y > S)
+						hasInEdge[Y] = false;
+			}
+		}
 
 #ifdef mydebug
 		outputTime("A S cycle");
@@ -683,6 +792,13 @@ void CircuitFinder::runInSubGraph(int* s, int len)
 	}
 }
 
+void CircuitFinder::removeNode(int V)
+{
+	for (int in : inAK[V])
+	{
+		AK[in].erase(find(AK[in].begin(), AK[in].end(), V));
+	}
+}
 
 //�������
 void CircuitFinder::run()
@@ -693,25 +809,56 @@ void CircuitFinder::run()
 	struct timeval ov_start, ov_end;
 	gettimeofday(&ov_start, NULL);
 #endif
-	//   while (S < N) {
-	//     for (int I = S; I <= N; ++I) {
-	//       Blocked[I-1] = false;
-	//       B[I-1].clear();
-	//     }
-	//     circuit(S);
-	//     //circuitIterate(S);
-
-	//     removeNode(S);
-
-	//     ++S;
-
-	// #ifdef mydebug
-	//     outputTime("A S cycle");
-	//     cout << S << endl;
-	// #endif
-	//   }
-
-	strongComponent();
+	if (isDenseGraph)
+	{
+		while (S < N) {
+			if (inAK[S].size() == 0)
+			{
+				S++;
+				continue;
+			}
+			//for (int I = S; I < N; ++I) {
+			//	Blocked[I] = false;
+			//	sizeB[I] = 0;
+			//}
+			memset(Blocked+S, false, (N-S) * sizeof(*Blocked));
+			memset(sizeB+S, 0, (N-S) * sizeof(*sizeB));
+			for (int W : inAK[S])
+			{
+				if (W > S)
+				{
+					hasInEdge[W] = true;
+					hasOneStepEdge[W] = true;
+					for (int Y : inAK[W])
+						if (Y > S)
+							hasInEdge[Y] = true;
+				}
+			}
+			circuit(S);
+			removeNode(S);
+			for (int W : inAK[S])
+			{
+				if (W > S)
+				{
+					hasInEdge[W] = false;
+					hasOneStepEdge[W] = false;
+					for (int Y : inAK[W])
+						if (Y > S)
+							hasInEdge[Y] = false;
+				}
+			}
+			++S;
+#ifdef mydebug
+			outputTime("A S cycle");
+			cout << S << endl;
+#endif
+		}
+	}
+	else
+	{
+		strongComponent();
+		sortVector();
+	}
 #ifdef MYTIME
 	gettimeofday(&ov_end, NULL);
 	double timeuse
@@ -727,7 +874,6 @@ void CircuitFinder::run()
 #ifdef MYTIME
 	gettimeofday(&ov_start, NULL);
 #endif
-	sortVector();
 #ifdef MYTIME
 	gettimeofday(&ov_end, NULL);
 	timeuse
@@ -771,7 +917,8 @@ Timer:startTimer("overall");
 #endif
 
 #ifdef _WIN64
-	cf.loadTestData("./data/77409/test_data.txt");
+	//cf.loadTestData("./data/54/test_data.txt");
+	cf.loadTestData("./test_data.txt");
 #elif defined TEST
 	cf.loadTestData("./data/38252/test_data.txt");
 #else
