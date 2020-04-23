@@ -223,7 +223,7 @@ public:
 
         for (int& v : G[cur]) {
             // int idv = ids[v];
-            if (v == head && depth >= 3 && depth <= 7) {
+            if (v == head && depth >= 3) {
                 memcpy(&ans[depth - 3][n_ans[depth - 3]++ * depth], path_new - depth, depth * sizeof(int));
             }
             if (!vis[v] && v > head) {
@@ -360,7 +360,7 @@ public:
 int main()
 {
 #ifdef _WIN64
-    string testFile = "../data/54/test_data.txt";
+    string testFile = "../data/1004812/test_data.txt";
     clock_t start, finish;
     double totaltime;
     start = clock();
