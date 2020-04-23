@@ -17,9 +17,10 @@
 using namespace std;
 using namespace chrono;
 
-#define TEST
-
-#define MYTIME
+#ifndef _WIN64
+	#define TEST
+	#define MYTIME
+#endif
 
 // #define TIMERS
 
@@ -917,8 +918,8 @@ Timer:startTimer("overall");
 #endif
 
 #ifdef _WIN64
-	//cf.loadTestData("./data/54/test_data.txt");
-	cf.loadTestData("./test_data.txt");
+	cf.loadTestData("./data/54/test_data.txt");
+	//cf.loadTestData("./test_data.txt");
 #elif defined TEST
 	cf.loadTestData("./data/38252/test_data.txt");
 #else
