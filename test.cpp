@@ -11,6 +11,7 @@
 #include <fstream>
 #include <iostream>
 #include <time.h>
+#include <thread>
 #else
 #include <bits/stdc++.h>
 #include <assert.h>
@@ -19,6 +20,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/mman.h>
+#include <thread>
 #endif
 
 using namespace std;
@@ -50,6 +52,11 @@ const char digit_pairs[201] = {
   "80818283848586878889"
   "90919293949596979899"
 };
+
+typedef struct __THREAD_DATA
+{
+    int head; int cur; int depth; int* path_new; int thread_num;
+}THREAD_DATA;
 
 int append_uint_to_str(char* s, unsigned int i)
 {
@@ -113,7 +120,7 @@ public:
     vector<ui> ids; //0...n to sorted id
     vector<ui> inputs; //u-v pairs
     vector<int> inDegrees;
-    vector<bool> vis;
+    vector<vector<bool>> vis;
     //    vector<vector<Path>> ans_arr;
     int* ans3;
     int* ans4;
@@ -217,8 +224,8 @@ public:
         // }
     }
 
-    void dfs(int head, int cur, int depth, int* path_new) {
-        vis[cur] = true;
+    void dfs(int head, int cur, int depth, int* path_new, int thread_num) {
+        vis[thread_num][cur] = true;
         *path_new++ = ids[cur];
 
         for (int& v : G[cur]) {
@@ -226,22 +233,22 @@ public:
             if (v == head && depth >= 3 && depth <= 7) {
                 memcpy(&ans[depth - 3][n_ans[depth - 3]++ * depth], path_new - depth, depth * sizeof(int));
             }
-            if (!vis[v] && v > head) {
-                if (depth == 6 && direct_reach[v] == 1) {
+            if (!vis[thread_num][v] && v > head) {
+                if (depth == 6 && direct_reach[thread_num * nodeCnt + v] == 1) {
                     *path_new++ = ids[v];
                     memcpy(&ans[4][n_ans[4]++ * 7], path_new - 7, 7 * sizeof(int));
                     path_new--;
                 }
                 if (depth < 4)
-                    dfs(head, v, depth + 1, path_new);
+                    dfs(head, v, depth + 1, path_new, thread_num);
                 if (depth == 4 || depth == 5)
                 {
-                    if (onestep_reach[v] == 1)
-                        dfs(head, v, depth + 1, path_new);
+                    if (onestep_reach[thread_num * nodeCnt + v] == 1)
+                        dfs(head, v, depth + 1, path_new, thread_num);
                 }
             }
         }
-        vis[cur] = false;
+        vis[thread_num][cur] = false;
         path_new--;
     }
 
@@ -254,54 +261,87 @@ public:
         ans[3] = new int[6 * 2000000];
         ans[4] = new int[7 * 3000000];
 
-        vis = vector<bool>(nodeCnt, false);
+        const int thread_cnt = 1;
+        int thread_num = 0;
+
+        vis = vector<vector<bool>>(thread_cnt);
+        for (int i = 0; i < thread_cnt; i++)
+        {
+            vis[i] = vector<bool>(nodeCnt, false);
+        }
+
+        thread th[thread_cnt];
         vector<int> path;
         //        ans_arr.resize(5);
-        int path_new[7];
-        direct_reach = new int[nodeCnt];
-        onestep_reach = new int[nodeCnt];
-        memset(direct_reach, 0, nodeCnt);
-        memset(onestep_reach, 0, nodeCnt);
+        int path_new[7*thread_cnt];
+        direct_reach = new int[nodeCnt*thread_cnt];
+        onestep_reach = new int[nodeCnt*thread_cnt];
+        memset(direct_reach, 0, nodeCnt*thread_cnt);
+        memset(onestep_reach, 0, nodeCnt*thread_cnt);
         // for (int i = 0; i < nodeCnt; ++i)
         // {
             // direct_reach[i] = 0;
             // onestep_reach[i] = 0;
         // }
         // vector<bool> invvis(nodeCnt,false);
-        for (int i = 0; i < nodeCnt; i++) {
-            for (int& v : invG[i])
+        for (int j = 0; j < nodeCnt; j+=thread_cnt) {
+            for (int i = j; i < min(j + thread_cnt, nodeCnt); i++)
             {
-                //		if(v<i) continue;
-                direct_reach[v] = 1;
-                onestep_reach[v] = 1;
-                // invvis[v] = true;
-                for (int& vv : invG[v])
+                thread_num = i % thread_cnt;
+
+                for (int& v : invG[i])
                 {
-                    //		    if(vv<i) continue;
-                    onestep_reach[vv] = 1;
-                    for (int& vvv : invG[vv])
+                    //		if(v<i) continue;
+                    direct_reach[v + thread_num * nodeCnt] = 1;
+                    onestep_reach[v + thread_num * nodeCnt] = 1;
+                    // invvis[v] = true;
+                    for (int& vv : invG[v])
                     {
-                        //			if(vvv<i) continue;
-                        onestep_reach[vvv] = 1;
+                        //		    if(vv<i) continue;
+                        onestep_reach[vv + thread_num * nodeCnt] = 1;
+                        for (int& vvv : invG[vv])
+                        {
+                            //			if(vvv<i) continue;
+                            onestep_reach[vvv + thread_num * nodeCnt] = 1;
+                        }
                     }
                 }
             }
-            if (!G[i].empty()) {
-                dfs(i, i, 1, &path_new[0]);
-            }
-            for (int& v : invG[i])
+            for (int i = j; i < min(j + thread_cnt, nodeCnt); i++)
             {
-                //		if(v<i) continue;
-                direct_reach[v] = 0;
-                onestep_reach[v] = 0;
-                for (int& vv : invG[v])
+                thread_num = i % thread_cnt;
+                if (!G[i].empty()) {
+                    th[thread_num] = thread(&Solution::dfs, this, i, i, 1, &path_new[thread_num*7], thread_num);
+                    //dfs(i, i, 1, &path_new[0], thread_num);
+                }
+            }
+
+            for (int i = j; i < min(j + thread_cnt, nodeCnt); i++)
+            {
+                thread_num = i % thread_cnt;
+                if (!G[i].empty()) {
+                    th[thread_num].join();
+                }
+            }
+
+            for (int i = j; i < min(j + thread_cnt, nodeCnt); i++)
+            {
+                //cout << "processed: " << i << endl;
+                thread_num = i % thread_cnt;
+                for (int& v : invG[i])
                 {
-                    //		    if(vv<i) continue;
-                    onestep_reach[vv] = 0;
-                    for (int& vvv : invG[vv])
+                    //		if(v<i) continue;
+                    direct_reach[v + thread_num * nodeCnt] = 0;
+                    onestep_reach[v + thread_num * nodeCnt] = 0;
+                    for (int& vv : invG[v])
                     {
-                        //			if(vvv<i) continue;
-                        onestep_reach[vvv] = 0;
+                        //		    if(vv<i) continue;
+                        onestep_reach[vv + thread_num * nodeCnt] = 0;
+                        for (int& vvv : invG[vv])
+                        {
+                            //			if(vvv<i) continue;
+                            onestep_reach[vvv + thread_num * nodeCnt] = 0;
+                        }
                     }
                 }
             }
@@ -360,7 +400,8 @@ public:
 int main()
 {
 #ifdef _WIN64
-    string testFile = "../data/54/test_data.txt";
+    string testFile = "../data/3738/test_data.txt";
+    //string testFile = "../../data/test_data_small.txt";
     clock_t start, finish;
     double totaltime;
     start = clock();
