@@ -12,6 +12,7 @@
 #include <iostream>
 #include <time.h>
 #include <thread>
+#include <mutex>
 #else
 #include <bits/stdc++.h>
 #include <assert.h>
@@ -21,6 +22,7 @@
 #include <unistd.h>
 #include <sys/mman.h>
 #include <thread>
+#include <mutex>
 #endif
 
 using namespace std;
@@ -132,6 +134,8 @@ public:
     int nodeCnt;
     int* direct_reach;
     int* onestep_reach;
+    vector<vector<vector<int>>> resVect;
+    mutex mtx;
 
     void parseInput(string& testFile) {
         ui u, v, c;
@@ -231,12 +235,16 @@ public:
         for (int& v : G[cur]) {
             // int idv = ids[v];
             if (v == head && depth >= 3 && depth <= 7) {
+                mtx.lock();
                 memcpy(&ans[depth - 3][n_ans[depth - 3]++ * depth], path_new - depth, depth * sizeof(int));
+                mtx.unlock();
             }
             if (!vis[thread_num][v] && v > head) {
                 if (depth == 6 && direct_reach[thread_num * nodeCnt + v] == 1) {
                     *path_new++ = ids[v];
+                    mtx.lock();
                     memcpy(&ans[4][n_ans[4]++ * 7], path_new - 7, 7 * sizeof(int));
+                    mtx.unlock();
                     path_new--;
                 }
                 if (depth < 4)
@@ -252,6 +260,49 @@ public:
         path_new--;
     }
 
+    void start_threaded_solve(int thread_num, int thread_cnt, int* path_new)
+    {
+        for (int i = thread_num; i < nodeCnt; i += thread_cnt)
+        {
+            for (int& v : invG[i])
+            {
+                //		if(v<i) continue;
+                direct_reach[v + thread_num * nodeCnt] = 1;
+                onestep_reach[v + thread_num * nodeCnt] = 1;
+                // invvis[v] = true;
+                for (int& vv : invG[v])
+                {
+                    //		    if(vv<i) continue;
+                    onestep_reach[vv + thread_num * nodeCnt] = 1;
+                    for (int& vvv : invG[vv])
+                    {
+                        //			if(vvv<i) continue;
+                        onestep_reach[vvv + thread_num * nodeCnt] = 1;
+                    }
+                }
+            }
+            if (!G[i].empty()) {
+                dfs(i, i, 1, path_new, thread_num);
+            }
+            for (int& v : invG[i])
+            {
+                //		if(v<i) continue;
+                direct_reach[v + thread_num * nodeCnt] = 0;
+                onestep_reach[v + thread_num * nodeCnt] = 0;
+                for (int& vv : invG[v])
+                {
+                    //		    if(vv<i) continue;
+                    onestep_reach[vv + thread_num * nodeCnt] = 0;
+                    for (int& vvv : invG[vv])
+                    {
+                        //			if(vvv<i) continue;
+                        onestep_reach[vvv + thread_num * nodeCnt] = 0;
+                    }
+                }
+            }
+        }
+    }
+
     //search from 0...n
     //鐢变簬瑕佹眰id鏈€灏忕殑鍦ㄥ墠锛屽洜姝ゆ悳绱㈢殑鍏ㄨ繃绋嬩腑涓嶈€冭檻姣旇捣鐐筰d鏇村皬鐨勮妭鐐�
     void solve() {
@@ -261,7 +312,7 @@ public:
         ans[3] = new int[6 * 2000000];
         ans[4] = new int[7 * 3000000];
 
-        const int thread_cnt = 1;
+        const int thread_cnt = 4;
         int thread_num = 0;
 
         vis = vector<vector<bool>>(thread_cnt);
@@ -284,67 +335,13 @@ public:
             // onestep_reach[i] = 0;
         // }
         // vector<bool> invvis(nodeCnt,false);
-        for (int j = 0; j < nodeCnt; j+=thread_cnt) {
-            for (int i = j; i < min(j + thread_cnt, nodeCnt); i++)
-            {
-                thread_num = i % thread_cnt;
-
-                for (int& v : invG[i])
-                {
-                    //		if(v<i) continue;
-                    direct_reach[v + thread_num * nodeCnt] = 1;
-                    onestep_reach[v + thread_num * nodeCnt] = 1;
-                    // invvis[v] = true;
-                    for (int& vv : invG[v])
-                    {
-                        //		    if(vv<i) continue;
-                        onestep_reach[vv + thread_num * nodeCnt] = 1;
-                        for (int& vvv : invG[vv])
-                        {
-                            //			if(vvv<i) continue;
-                            onestep_reach[vvv + thread_num * nodeCnt] = 1;
-                        }
-                    }
-                }
-            }
-            for (int i = j; i < min(j + thread_cnt, nodeCnt); i++)
-            {
-                thread_num = i % thread_cnt;
-                if (!G[i].empty()) {
-                    th[thread_num] = thread(&Solution::dfs, this, i, i, 1, &path_new[thread_num*7], thread_num);
-                    //dfs(i, i, 1, &path_new[0], thread_num);
-                }
-            }
-
-            for (int i = j; i < min(j + thread_cnt, nodeCnt); i++)
-            {
-                thread_num = i % thread_cnt;
-                if (!G[i].empty()) {
-                    th[thread_num].join();
-                }
-            }
-
-            for (int i = j; i < min(j + thread_cnt, nodeCnt); i++)
-            {
-                //cout << "processed: " << i << endl;
-                thread_num = i % thread_cnt;
-                for (int& v : invG[i])
-                {
-                    //		if(v<i) continue;
-                    direct_reach[v + thread_num * nodeCnt] = 0;
-                    onestep_reach[v + thread_num * nodeCnt] = 0;
-                    for (int& vv : invG[v])
-                    {
-                        //		    if(vv<i) continue;
-                        onestep_reach[vv + thread_num * nodeCnt] = 0;
-                        for (int& vvv : invG[vv])
-                        {
-                            //			if(vvv<i) continue;
-                            onestep_reach[vvv + thread_num * nodeCnt] = 0;
-                        }
-                    }
-                }
-            }
+        for (int i = 0; i < thread_cnt; i++)
+        {
+            th[i] = thread(&Solution::start_threaded_solve, this, i, thread_cnt, &path_new[i * 7]);
+        }
+        for (int i = 0; i < thread_cnt; i++)
+        {
+            th[i].join();
         }
     }
 
@@ -400,7 +397,7 @@ public:
 int main()
 {
 #ifdef _WIN64
-    string testFile = "../data/3738/test_data.txt";
+    string testFile = "../data/77409/test_data.txt";
     //string testFile = "../../data/test_data_small.txt";
     clock_t start, finish;
     double totaltime;
