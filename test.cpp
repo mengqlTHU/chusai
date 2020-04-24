@@ -13,6 +13,7 @@
 #include <time.h>
 #include <thread>
 #include <mutex>
+#include <math.h>
 #else
 #include <bits/stdc++.h>
 #include <assert.h>
@@ -22,9 +23,11 @@
 #include <unistd.h>
 #include <sys/mman.h>
 #include <thread>
+#include <math.h>
 #include <mutex>
 #endif
 
+#define thread_cnt 4
 using namespace std;
 
 //#define TEST
@@ -55,10 +58,6 @@ const char digit_pairs[201] = {
   "90919293949596979899"
 };
 
-typedef struct __THREAD_DATA
-{
-    int head; int cur; int depth; int* path_new; int thread_num;
-}THREAD_DATA;
 
 int append_uint_to_str(char* s, unsigned int i)
 {
@@ -134,7 +133,7 @@ public:
     int nodeCnt;
     int* direct_reach;
     int* onestep_reach;
-    vector<vector<int*>> resVect;
+    vector<vector<vector<int*>>> resVect;
     mutex mtx;
 
     void parseInput(string& testFile) {
@@ -237,8 +236,8 @@ public:
             if (v == head && depth >= 3 && depth <= 7) {
                 mtx.lock();
                 //memcpy(&ans[depth - 3][n_ans[depth - 3]++ * depth], path_new - depth, depth * sizeof(int));
-                resVect[depth - 3].push_back((int*)malloc(depth * sizeof(int)));
-                memcpy(resVect[depth - 3].back(), path_new - depth, depth * sizeof(int));
+                resVect[depth - 3][thread_num].push_back((int*)malloc(depth * sizeof(int)));
+                memcpy(resVect[depth - 3][thread_num].back(), path_new - depth, depth * sizeof(int));
                 mtx.unlock();
             }
             if (!vis[thread_num][v] && v > head) {
@@ -246,8 +245,8 @@ public:
                     *path_new++ = ids[v];
                     mtx.lock();
                     //memcpy(&ans[4][n_ans[4]++ * 7], path_new - 7, 7 * sizeof(int));
-                    resVect[4].push_back((int*)malloc(7*sizeof(int)));
-                    memcpy(resVect[4].back(), path_new - 7, 7 * sizeof(int));
+                    resVect[4][thread_num].push_back((int*)malloc(7*sizeof(int)));
+                    memcpy(resVect[4][thread_num].back(), path_new - 7, 7 * sizeof(int));
                     mtx.unlock();
                     path_new--;
                 }
@@ -264,9 +263,14 @@ public:
         path_new--;
     }
 
-    void start_threaded_solve(int thread_num, int thread_cnt, int* path_new)
+    void start_threaded_solve(int thread_num, int* path_new)
     {
-        for (int i = thread_num; i < nodeCnt; i += thread_cnt)
+        const double thread_cntd = (double)thread_cnt;
+        const double thread_numd = (double)thread_num;
+        const double nodeCntd = (double)nodeCnt;
+        const int nodeMin = nodeCntd*( 1.0 - pow((thread_cntd - thread_numd) / thread_cntd, 1.0 / 3.0));
+        const int nodeMax = nodeCntd*( 1.0- pow((thread_cntd - thread_numd - 1.0) / thread_cntd, 1.0 / 3.0));
+        for (int i = nodeMin; i < nodeMax; i ++)
         {
             for (int& v : invG[i])
             {
@@ -327,15 +331,17 @@ public:
         ans[3] = new int[6 * 2000000];
         ans[4] = new int[7 * 3000000];
 
-        const int thread_cnt = 4;
         int thread_num = 0;
 
-        resVect = vector<vector<int*>>(5);
-
+        resVect = vector<vector<vector<int*>>>(5);
         vis = vector<vector<bool>>(thread_cnt);
         for (int i = 0; i < thread_cnt; i++)
         {
             vis[i] = vector<bool>(nodeCnt, false);
+        }
+        for (int i = 0; i < 5; i++)
+        {
+            resVect[i] = vector<vector<int*>>(thread_cnt);
         }
 
         thread th[thread_cnt];
@@ -354,27 +360,28 @@ public:
         // vector<bool> invvis(nodeCnt,false);
         for (int i = 0; i < thread_cnt; i++)
         {
-            th[i] = thread(&Solution::start_threaded_solve, this, i, thread_cnt, &path_new[i * 7]);
+            th[i] = thread(&Solution::start_threaded_solve, this, i, &path_new[i * 7]);
         }
         for (int i = 0; i < thread_cnt; i++)
         {
             th[i].join();
         }
 
-        for (int i = 0; i < 5; i++)
-        {
-            if (resVect[i].size() > 0)
-            {
-                sort(resVect[i].begin(), resVect[i].end(), compareVector);
-            }
-        }
+        //for (int i = 0; i < 5; i++)
+        //{
+        //    if (resVect[i].size() > 0)
+        //    {
+        //        sort(resVect[i].begin(), resVect[i].end(), compareVector);
+        //    }
+        //}
     }
 
     void save(string& outputFile) {
         int count = 0;
 
         for (int i = 0; i < 5; i++) {
-            count += resVect[i].size();
+            for (int j=0;j<thread_cnt;j++)
+                count += resVect[i][j].size();
         }
 #ifdef TEST
         printf("Total Loops %d\n", count);
@@ -391,12 +398,14 @@ public:
         int tmp[7];
 
         for (int i = 0; i < 5; i++) {
-            for (int j = 0; j < resVect[i].size(); j++) {
-                for (int k = 0; k < i + 3; k++)
-                {
-                    pp += append_uint_to_str(pp, resVect[i][j][k]);
+            for (int j = 0; j < thread_cnt; j++) {
+                for (int k = 0; k < resVect[i][j].size(); k++) {
+                    for (int l = 0; l < i + 3; l++)
+                    {
+                        pp += append_uint_to_str(pp, resVect[i][j][k][l]);
+                    }
+                    pp[-1] = '\n';
                 }
-                pp[-1] = '\n';
             }
         }
 
@@ -411,7 +420,7 @@ public:
 int main()
 {
 #ifdef _WIN64
-    string testFile = "../data/1004812/test_data.txt";
+    string testFile = "../data/54/test_data.txt";
     //string testFile = "../../data/test_data_small.txt";
     clock_t start, finish;
     double totaltime;
