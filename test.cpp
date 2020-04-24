@@ -134,7 +134,7 @@ public:
     int nodeCnt;
     int* direct_reach;
     int* onestep_reach;
-    vector<vector<vector<int>>> resVect;
+    vector<vector<int*>> resVect;
     mutex mtx;
 
     void parseInput(string& testFile) {
@@ -236,14 +236,18 @@ public:
             // int idv = ids[v];
             if (v == head && depth >= 3 && depth <= 7) {
                 mtx.lock();
-                memcpy(&ans[depth - 3][n_ans[depth - 3]++ * depth], path_new - depth, depth * sizeof(int));
+                //memcpy(&ans[depth - 3][n_ans[depth - 3]++ * depth], path_new - depth, depth * sizeof(int));
+                resVect[depth - 3].push_back((int*)malloc(depth * sizeof(int)));
+                memcpy(resVect[depth - 3].back(), path_new - depth, depth * sizeof(int));
                 mtx.unlock();
             }
             if (!vis[thread_num][v] && v > head) {
                 if (depth == 6 && direct_reach[thread_num * nodeCnt + v] == 1) {
                     *path_new++ = ids[v];
                     mtx.lock();
-                    memcpy(&ans[4][n_ans[4]++ * 7], path_new - 7, 7 * sizeof(int));
+                    //memcpy(&ans[4][n_ans[4]++ * 7], path_new - 7, 7 * sizeof(int));
+                    resVect[4].push_back((int*)malloc(7*sizeof(int)));
+                    memcpy(resVect[4].back(), path_new - 7, 7 * sizeof(int));
                     mtx.unlock();
                     path_new--;
                 }
@@ -303,6 +307,17 @@ public:
         }
     }
 
+    static bool compareVector(int* v1, int* v2)
+    {
+        int i = 0;
+        while(true)
+        {
+            if (v1[i] != v2[i])
+                return v1[i] < v2[i];
+            i++;
+        }
+    }
+
     //search from 0...n
     //鐢变簬瑕佹眰id鏈€灏忕殑鍦ㄥ墠锛屽洜姝ゆ悳绱㈢殑鍏ㄨ繃绋嬩腑涓嶈€冭檻姣旇捣鐐筰d鏇村皬鐨勮妭鐐�
     void solve() {
@@ -314,6 +329,8 @@ public:
 
         const int thread_cnt = 4;
         int thread_num = 0;
+
+        resVect = vector<vector<int*>>(5);
 
         vis = vector<vector<bool>>(thread_cnt);
         for (int i = 0; i < thread_cnt; i++)
@@ -343,15 +360,21 @@ public:
         {
             th[i].join();
         }
+
+        for (int i = 0; i < 5; i++)
+        {
+            if (resVect[i].size() > 0)
+            {
+                sort(resVect[i].begin(), resVect[i].end(), compareVector);
+            }
+        }
     }
 
     void save(string& outputFile) {
         int count = 0;
-        //        for(auto &a:ans_arr){
-        //            count += a.size();
-        //        }
+
         for (int i = 0; i < 5; i++) {
-            count += n_ans[i];
+            count += resVect[i].size();
         }
 #ifdef TEST
         printf("Total Loops %d\n", count);
@@ -366,21 +389,12 @@ public:
         pp += append_uint_to_str(pp, count);
         pp[-1] = '\n';
         int tmp[7];
-        //        for(auto &a:ans_arr){
-        //            int sz=a[0].length;
-        //            for(auto &x:a){
-        //                for(int i=0;i<sz;i++)
-        //                {
-        //                    pp += append_uint_to_str(pp, x.path[i]);
-        //                }
-        //                pp[-1] = '\n';
-        //            }
-        //        }
+
         for (int i = 0; i < 5; i++) {
-            for (int j = 0; j < n_ans[i]; j++) {
+            for (int j = 0; j < resVect[i].size(); j++) {
                 for (int k = 0; k < i + 3; k++)
                 {
-                    pp += append_uint_to_str(pp, ans[i][j * (i + 3) + k]);
+                    pp += append_uint_to_str(pp, resVect[i][j][k]);
                 }
                 pp[-1] = '\n';
             }
@@ -397,7 +411,7 @@ public:
 int main()
 {
 #ifdef _WIN64
-    string testFile = "../data/77409/test_data.txt";
+    string testFile = "../data/1004812/test_data.txt";
     //string testFile = "../../data/test_data_small.txt";
     clock_t start, finish;
     double totaltime;
