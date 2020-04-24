@@ -105,17 +105,17 @@ public:
     //maxN=560000
     //maxE=280000 ~avgN=26000
     //vector<int> *G;
-    vector<vector<int>> G;
-    int G_arr_num[280000];
-    int* G_arr;
-    vector<vector<int>> invG;
-    unordered_map<ui, int> idHash; //sorted id to 0...n
+    vector<vector<uint32_t>> G;
+    uint32_t G_arr_num[280000];
+    uint32_t* G_arr;
+    vector<vector<uint32_t>> invG;
+    unordered_map<ui, uint32_t> idHash; //sorted id to 0...n
     vector<ui> ids; //0...n to sorted id
     vector<ui> inputs; //u-v pairs
-    vector<int> inDegrees;
+    //vector<int> inDegrees;
     vector<bool> vis;
     //    vector<vector<Path>> ans_arr;
-    int* ans3;
+    uint32_t* ans3;
     int* ans4;
     int* ans5;
     int* ans6;
@@ -123,8 +123,8 @@ public:
     int* ans[5];
     int n_ans[5] = { 0,0,0,0,0 };
     int nodeCnt;
-    int* direct_reach;
-    int* onestep_reach;
+    bool* direct_reach;
+    bool* onestep_reach;
 
     void parseInput(string& testFile) {
         ui u, v, c;
@@ -184,7 +184,6 @@ public:
         auto tmp = inputs;
         sort(tmp.begin(), tmp.end());
         tmp.erase(unique(tmp.begin(), tmp.end()), tmp.end());
-        nodeCnt = tmp.size();
         ids = tmp;
         nodeCnt = 0;
         for (ui& x : tmp) {
@@ -195,14 +194,19 @@ public:
 #endif
         int sz = inputs.size();
         //G=new vector<int>[nodeCnt];
-        G = vector<vector<int>>(nodeCnt);
-        invG = vector<vector<int>>(nodeCnt);
-        inDegrees = vector<int>(nodeCnt, 0);
+        G = vector<vector<uint32_t>>(nodeCnt);
+        invG = vector<vector<uint32_t>>(nodeCnt);
+        for (int i = 0; i < nodeCnt; i ++) {
+            G[i].reserve(10);
+            invG[i].reserve(10);
+        }
+        //inDegrees = vector<int>(nodeCnt, 0);
+        int u, v;
         for (int i = 0; i < sz; i += 2) {
-            int u = idHash[inputs[i]], v = idHash[inputs[i + 1]];
-            G[u].push_back(v);
-            invG[v].push_back(u);
-            ++inDegrees[v];
+            u = idHash[inputs[i]]; v = idHash[inputs[i + 1]];
+            G[u].emplace_back(v);
+            invG[v].emplace_back(u);
+            //++inDegrees[v];
         }
         for (int i = 0; i < nodeCnt; i++)
         {
@@ -217,17 +221,17 @@ public:
         // }
     }
 
-    void dfs(int head, int cur, int depth, int* path_new) {
+    void dfs(int head, int cur, int depth, uint32_t* path_new) {
         vis[cur] = true;
         *path_new++ = ids[cur];
 
-        for (int& v : G[cur]) {
+        for (uint32_t& v : G[cur]) {
             // int idv = ids[v];
             if (v == head && depth >= 3) {
                 memcpy(&ans[depth - 3][n_ans[depth - 3]++ * depth], path_new - depth, depth * sizeof(int));
             }
             if (!vis[v] && v > head) {
-                if (depth == 6 && direct_reach[v] == 1) {
+                if (depth == 6 && direct_reach[v]) {
                     *path_new++ = ids[v];
                     memcpy(&ans[4][n_ans[4]++ * 7], path_new - 7, 7 * sizeof(int));
                     path_new--;
@@ -236,7 +240,7 @@ public:
                     dfs(head, v, depth + 1, path_new);
                 if (depth == 4 || depth == 5)
                 {
-                    if (onestep_reach[v] == 1)
+                    if (onestep_reach[v])
                         dfs(head, v, depth + 1, path_new);
                 }
             }
@@ -257,51 +261,49 @@ public:
         vis = vector<bool>(nodeCnt, false);
         vector<int> path;
         //        ans_arr.resize(5);
-        int path_new[7];
-        direct_reach = new int[nodeCnt];
-        onestep_reach = new int[nodeCnt];
-        memset(direct_reach, 0, nodeCnt);
-        memset(onestep_reach, 0, nodeCnt);
-        // for (int i = 0; i < nodeCnt; ++i)
-        // {
-            // direct_reach[i] = 0;
-            // onestep_reach[i] = 0;
-        // }
-        // vector<bool> invvis(nodeCnt,false);
+        uint32_t path_new[7];
+        direct_reach = new bool[nodeCnt];
+        onestep_reach = new bool[nodeCnt];
+        memset(direct_reach, false, nodeCnt);
+        memset(onestep_reach, false, nodeCnt);
+
         for (int i = 0; i < nodeCnt; i++) {
-            for (int& v : invG[i])
+            //for (int j=0;j<invG[i].size();j++)
+            for (uint32_t& v : invG[i])
             {
-                //		if(v<i) continue;
-                direct_reach[v] = 1;
-                onestep_reach[v] = 1;
+                //int v = invG[i][j];
+                //if(v<i) continue;
+                direct_reach[v] = true;
+                onestep_reach[v] = true;
                 // invvis[v] = true;
-                for (int& vv : invG[v])
+                for (uint32_t& vv : invG[v])
                 {
-                    //		    if(vv<i) continue;
-                    onestep_reach[vv] = 1;
-                    for (int& vvv : invG[vv])
+                    //if(vv<i) continue;
+                    onestep_reach[vv] = true;
+                    for (uint32_t& vvv : invG[vv])
                     {
-                        //			if(vvv<i) continue;
-                        onestep_reach[vvv] = 1;
+                        //if(vvv<i) continue;
+                        onestep_reach[vvv] = true;
                     }
                 }
             }
             if (!G[i].empty()) {
                 dfs(i, i, 1, &path_new[0]);
             }
-            for (int& v : invG[i])
+
+            for (uint32_t& v : invG[i])
             {
                 //		if(v<i) continue;
-                direct_reach[v] = 0;
-                onestep_reach[v] = 0;
-                for (int& vv : invG[v])
+                direct_reach[v] = false;
+                onestep_reach[v] = false;
+                for (uint32_t& vv : invG[v])
                 {
                     //		    if(vv<i) continue;
-                    onestep_reach[vv] = 0;
-                    for (int& vvv : invG[vv])
+                    onestep_reach[vv] = false;
+                    for (uint32_t& vvv : invG[vv])
                     {
                         //			if(vvv<i) continue;
-                        onestep_reach[vvv] = 0;
+                        onestep_reach[vvv] = false;
                     }
                 }
             }
@@ -361,11 +363,12 @@ int main()
 {
 #ifdef _WIN64
     string testFile = "../data/1004812/test_data.txt";
+    //string testFile = "../test_data.txt";
     clock_t start, finish;
     double totaltime;
     start = clock();
 #elif defined TEST
-    string testFile = "./data/58284/test_data.txt";
+    string testFile = "/root/lhb/chusai/data/54/test_data.txt";
 #else
     string testFile = "/data/test_data.txt";
 #endif
