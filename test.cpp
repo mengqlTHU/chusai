@@ -51,8 +51,14 @@ const char digit_pairs[201] = {
   "90919293949596979899"
 };
 
-int append_uint_to_str(char* s, unsigned int i)
+inline int append_uint_to_str(char* s, unsigned int i)
 {
+    if (i == 0)
+    {
+        *s = '0';
+        *(s + 1) = ',';
+        return 2;
+    }
     int size = intSize(i);
     s[size] = ',';
     char* c = &s[size - 1];
@@ -72,33 +78,6 @@ int append_uint_to_str(char* s, unsigned int i)
 };
 
 typedef uint32_t ui;
-struct Path {
-    //ID鏈€灏忕殑绗竴涓緭鍑猴紱
-    //鎬讳綋鎸夌収寰幆杞处璺緞闀垮害鍗囧簭鎺掑簭锛�
-    //鍚屼竴绾у埆鐨勮矾寰勯暱搴︿笅寰幆杞处璐﹀彿ID搴忓垪锛屾寜鐓у瓧鍏稿簭锛圛D杞负鏃犵鍙锋暣鏁板悗锛夊崌搴忔帓搴�
-    int length;
-    int path[7];
-
-    // Path(int length, const vector<ui> &path) : length(length), path(path) {}
-
-    Path(int length_new, int* path_new) : length(length_new) {
-        int i = 0;
-        memcpy(path, path_new - length_new, length_new * sizeof(int));
-    }
-
-    bool operator<(const Path& rhs)const {
-        if (length != rhs.length) return length < rhs.length;
-        for (int i = 0; i < length; i++) {
-            if (path[i] != rhs.path[i])
-                return path[i] < rhs.path[i];
-        }
-    }
-};
-
-bool cmp(Path* a, Path* b)
-{
-    return *a < *b;
-}
 
 class Solution {
 public:
@@ -111,17 +90,16 @@ public:
     vector<vector<uint32_t>> invG;
     unordered_map<ui, uint32_t> idHash; //sorted id to 0...n
     vector<ui> ids; //0...n to sorted id
+    char* idsStr;
+    int* idsStrIndex;
+    int* idsStrStep;
     vector<ui> inputs; //u-v pairs
     //vector<int> inDegrees;
     vector<bool> vis;
     //    vector<vector<Path>> ans_arr;
-    uint32_t* ans3;
-    int* ans4;
-    int* ans5;
-    int* ans6;
-    int* ans7;
-    int* ans[5];
+    char* ans[5];
     int n_ans[5] = { 0,0,0,0,0 };
+    int ans_top[5] = { 0,0,0,0,0};
     int nodeCnt;
     bool* direct_reach;
     bool* onestep_reach;
@@ -135,8 +113,6 @@ public:
         //     ++cnt;
         // }
 #ifdef _WIN64
-        //HANDLE f = CreateFileA(testFile.c_str(), GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-        //HANDLE fd = CreateFileMappingA(f, NULL, PAGE_READONLY, 0, 0, NULL);
         ifstream in(testFile);
         string contents((istreambuf_iterator<char>(in)), istreambuf_iterator<char>());
         int length = contents.length();
@@ -184,10 +160,24 @@ public:
         auto tmp = inputs;
         sort(tmp.begin(), tmp.end());
         tmp.erase(unique(tmp.begin(), tmp.end()), tmp.end());
-        ids = tmp;
+        //ids = tmp;
         nodeCnt = 0;
         for (ui& x : tmp) {
+
             idHash[x] = nodeCnt++;
+        }
+        idsStr = new char[nodeCnt * 10];
+        idsStrIndex = new int[nodeCnt];
+        idsStrStep = new int[nodeCnt];
+        char* p = &idsStr[0];
+        int index = 0; int step = 0;
+        for (int i = 0; i < nodeCnt; i++)
+        {
+            step = append_uint_to_str(p, tmp[i]);
+            p += step;
+            idsStrIndex[i] = index;
+            idsStrStep[i] = step;
+            index += step;
         }
 #ifdef TEST
         printf("%d Nodes in Total\n", nodeCnt);
@@ -221,47 +211,63 @@ public:
         // }
     }
 
-    void dfs(int head, int cur, int depth, uint32_t* path_new) {
+    void dfs(int head, int cur, int depth, char* path_new, char* path_head) {
         vis[cur] = true;
-        *path_new++ = ids[cur];
+        int len = idsStrStep[cur];
+        memcpy(path_new, &idsStr[idsStrIndex[cur]], len * sizeof(char));
+        path_new += len;
 
         for (uint32_t& v : G[cur]) {
             // int idv = ids[v];
             if (v == head && depth >= 3) {
-                memcpy(&ans[depth - 3][n_ans[depth - 3]++ * depth], path_new - depth, depth * sizeof(int));
+                //memcpy(&ans[depth - 3][n_ans[depth - 3]++ * depth], path_new - depth, depth * sizeof(int));
+                memcpy(&ans[depth - 3][ans_top[depth - 3]], path_head, path_new - path_head);
+                ans_top[depth - 3] += path_new - path_head;
+                n_ans[depth - 3]++;
+                ans[depth - 3][ans_top[depth - 3]-1] = '\n';
             }
             if (!vis[v] && v > head) {
                 if (depth == 6 && direct_reach[v]) {
-                    *path_new++ = ids[v];
-                    memcpy(&ans[4][n_ans[4]++ * 7], path_new - 7, 7 * sizeof(int));
-                    path_new--;
+                    //*path_new++ = ids[v];
+                    //memcpy(&ans[4][n_ans[4]++ * 7], path_new - 7, 7 * sizeof(int));
+                    //path_new--;
+                    int len7 = idsStrStep[v];
+                    memcpy(path_new, &idsStr[idsStrIndex[v]], len7 * sizeof(char));
+                    path_new += len7;
+                    memcpy(&ans[4][ans_top[4]], path_head, path_new - path_head);
+                    ans_top[4] += path_new - path_head;
+                    n_ans[4]++;
+                    ans[4][ans_top[4] - 1] = '\n';
+                    path_new -= len7;
                 }
                 if (depth < 4)
-                    dfs(head, v, depth + 1, path_new);
+                    dfs(head, v, depth + 1, path_new, path_head);
                 if (depth == 4 || depth == 5)
                 {
                     if (onestep_reach[v])
-                        dfs(head, v, depth + 1, path_new);
+                        dfs(head, v, depth + 1, path_new, path_head);
                 }
             }
         }
         vis[cur] = false;
-        path_new--;
+        path_new -= len;
     }
 
     //search from 0...n
     //鐢变簬瑕佹眰id鏈€灏忕殑鍦ㄥ墠锛屽洜姝ゆ悳绱㈢殑鍏ㄨ繃绋嬩腑涓嶈€冭檻姣旇捣鐐筰d鏇村皬鐨勮妭鐐�
     void solve() {
-        ans[0] = new int[3 * 500000];
-        ans[1] = new int[4 * 500000];
-        ans[2] = new int[5 * 1000000];
-        ans[3] = new int[6 * 2000000];
-        ans[4] = new int[7 * 3000000];
+        ans[0] = new char[3 * 500000 * 40];
+        ans[1] = new char[4 * 500000 * 50] ;
+        ans[2] = new char[5 * 1000000 * 60];
+        ans[3] = new char[6 * 2000000 * 70];
+        ans[4] = new char[7 * 3000000 * 80];
 
         vis = vector<bool>(nodeCnt, false);
         vector<int> path;
         //        ans_arr.resize(5);
         uint32_t path_new[7];
+        char* path_new_char = new char[200];
+        char* path_head = path_new_char;
         direct_reach = new bool[nodeCnt];
         onestep_reach = new bool[nodeCnt];
         memset(direct_reach, false, nodeCnt);
@@ -288,7 +294,7 @@ public:
                 }
             }
             if (!G[i].empty()) {
-                dfs(i, i, 1, &path_new[0]);
+                dfs(i, i, 1, path_new_char, path_head);
             }
 
             for (uint32_t& v : invG[i])
@@ -330,7 +336,7 @@ public:
         char* pp = (char*)p;
         pp += append_uint_to_str(pp, count);
         pp[-1] = '\n';
-        int tmp[7];
+        //int tmp[7];
         //        for(auto &a:ans_arr){
         //            int sz=a[0].length;
         //            for(auto &x:a){
@@ -341,14 +347,20 @@ public:
         //                pp[-1] = '\n';
         //            }
         //        }
-        for (int i = 0; i < 5; i++) {
-            for (int j = 0; j < n_ans[i]; j++) {
-                for (int k = 0; k < i + 3; k++)
-                {
-                    pp += append_uint_to_str(pp, ans[i][j * (i + 3) + k]);
-                }
-                pp[-1] = '\n';
-            }
+        //for (int i = 0; i < 5; i++) {
+        //    for (int j = 0; j < n_ans[i]; j++) {
+        //        for (int k = 0; k < i + 3; k++)
+        //        {
+        //            pp += append_uint_to_str(pp, ans[i][j * (i + 3) + k]);
+        //        }
+        //        pp[-1] = '\n';
+        //    }
+        //}
+
+        for (int i = 0; i < 5; i++)
+        {
+            memcpy(pp, ans[i], ans_top[i]);
+            pp += ans_top[i];
         }
 
         // memcpy(dst_ptr,p,pp-p);
@@ -362,7 +374,7 @@ public:
 int main()
 {
 #ifdef _WIN64
-    string testFile = "../data/1004812/test_data.txt";
+    string testFile = "../data/54/test_data.txt";
     //string testFile = "../test_data.txt";
     clock_t start, finish;
     double totaltime;
