@@ -186,16 +186,16 @@ public:
         //G=new vector<int>[nodeCnt];
         G = vector<vector<uint32_t>>(nodeCnt);
         invG = vector<vector<uint32_t>>(nodeCnt);
-        for (int i = 0; i < nodeCnt; i ++) {
-            G[i].reserve(10);
-            invG[i].reserve(10);
-        }
+        //for (int i = 0; i < nodeCnt; i ++) {
+        //    G[i].reserve(10);
+        //    invG[i].reserve(10);
+        //}
         //inDegrees = vector<int>(nodeCnt, 0);
         int u, v;
         for (int i = 0; i < sz; i += 2) {
             u = idHash[inputs[i]]; v = idHash[inputs[i + 1]];
-            G[u].emplace_back(v);
-            invG[v].emplace_back(u);
+            G[u].push_back(v);
+            invG[v].push_back(u);
             //++inDegrees[v];
         }
         for (int i = 0; i < nodeCnt; i++)
