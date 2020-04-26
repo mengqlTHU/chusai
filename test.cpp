@@ -11,6 +11,8 @@
 #include <fstream>
 #include <iostream>
 #include <time.h>
+#include <thread>
+#include <math.h>
 #else
 #include <bits/stdc++.h>
 #include <assert.h>
@@ -19,9 +21,13 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/mman.h>
+#include <thread>
+#include <math.h>
 #endif
 
 using namespace std;
+
+#define thread_cnt 4
 
 // #define TEST
 
@@ -139,11 +145,11 @@ public:
     vector<int> input_to_node;
     vector<int> node_to_input;
     //vector<int> inDegrees;
-    vector<bool> vis;
+    vector<vector<bool>> vis;
     //    vector<vector<Path>> ans_arr;
-    char* ans[5];
-    int n_ans[5] = { 0,0,0,0,0 };
-    int ans_top[5] = { 0,0,0,0,0 };
+    char* ans[5][thread_cnt];
+    int n_ans[5][thread_cnt];
+    int ans_top[5][thread_cnt];
     int nodeCnt;
     bool* direct_reach;
     bool* onestep_reach;
@@ -281,7 +287,7 @@ public:
 
     }
 
-    void dfs(int head, int cur, int depth, char* path_new, char* path_head) {
+    void dfs(int head, int cur, int depth, int thread_num, char* path_new, char* path_head) {
         vis[cur] = true;
         //        int len = idsStrStep[cur];
         int len = idsStrIndex[cur + 1] - idsStrIndex[cur];
@@ -326,6 +332,67 @@ public:
         path_new -= len;
     }
 
+
+    void start_threaded_solve(int thread_num, int* path_new)
+    {
+        const double thread_cntd = (double)thread_cnt;
+        const double thread_numd = (double)thread_num;
+        const double nodeCntd = (double)nodeCnt;
+        const int nodeMin = nodeCntd * (1.0 - pow((thread_cntd - thread_numd) / thread_cntd, 1.0 / 3.0));
+        const int nodeMax = nodeCntd * (1.0 - pow((thread_cntd - thread_numd - 1.0) / thread_cntd, 1.0 / 3.0));
+        for (int i = nodeMin; i < nodeMax; i++)
+        {
+            for (int i = 0; i < nodeCnt; i++) {
+                int* p = &invG_arr[i * 50];
+                for (int j = 0; j < invG_arr_num[i]; j++)
+                {
+                    int v = p[j];
+                    direct_reach[v] = true;
+                    onestep_reach[v] = true;
+                    int* pp = &invG_arr[v * 50];
+                    for (int k = 0; k < invG_arr_num[v]; k++)
+                    {
+                        int vv = pp[k];
+                        onestep_reach[vv] = true;
+                        int* ppp = &invG_arr[vv * 50];
+                        for (int l = 0; l < invG_arr_num[vv]; l++)
+                        {
+                            int vvv = ppp[l];
+                            onestep_reach[vvv] = true;
+                        }
+                    }
+                }
+
+                if (G_arr_num[i] > 0) {
+                    dfs(i, i, 1, path_new_char, path_head);
+                }
+                for (int j = 0; j < invG_arr_num[i]; j++)
+
+                {
+                    int v = p[j];
+
+                    direct_reach[v] = false;
+                    onestep_reach[v] = false;
+
+                    int* pp = &invG_arr[v * 50];
+                    for (int k = 0; k < invG_arr_num[v]; k++)
+
+                    {
+                        int vv = pp[k];
+                        onestep_reach[vv] = false;
+                        int* ppp = &invG_arr[vv * 50];
+                        for (int l = 0; l < invG_arr_num[vv]; l++)
+
+                        {
+                            int vvv = ppp[l];
+                            onestep_reach[vvv] = false;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     //search from 0...n
     //鐢变簬瑕佹眰id鏈€灏忕殑鍦ㄥ墠锛屽洜姝ゆ悳绱㈢殑鍏ㄨ繃绋嬩腑涓嶈€冭檻姣旇捣鐐筰d鏇村皬鐨勮妭鐐�
     void solve() {
@@ -334,6 +401,20 @@ public:
         ans[2] = new char[5 * 1000000 * 60];
         ans[3] = new char[6 * 2000000 * 70];
         ans[4] = new char[7 * 3000000 * 80];
+
+        for (int i = 0; i < thread_cnt; i++)
+        {
+            resVect[0][i] = new int[3 * 500000];
+            resVect[1][i] = new int[4 * 500000];
+            resVect[2][i] = new int[5 * 1000000];
+            resVect[3][i] = new int[6 * 2000000];
+            resVect[4][i] = new int[7 * 3000000];
+            resVectCount[0][i] = 0;
+            resVectCount[1][i] = 0;
+            resVectCount[2][i] = 0;
+            resVectCount[3][i] = 0;
+            resVectCount[4][i] = 0;
+        }
 
         vis = vector<bool>(nodeCnt, false);
         vector<int> path;
