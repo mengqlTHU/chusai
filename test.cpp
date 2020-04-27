@@ -12,6 +12,7 @@
 #include <iostream>
 #include <time.h>
 #include <thread>
+#include <mutex>
 #include <math.h>
 #else
 #include <bits/stdc++.h>
@@ -22,6 +23,7 @@
 #include <unistd.h>
 #include <sys/mman.h>
 #include <thread>
+#include <mutex>
 #include <math.h>
 #endif
 
@@ -153,6 +155,7 @@ public:
     int nodeCnt;
     bool* direct_reach;
     bool* onestep_reach;
+    mutex mtx;
 
     void parseInput(string& testFile) {
         ui u, v, c;
@@ -288,7 +291,7 @@ public:
     }
 
     void dfs(int head, int cur, int depth, int thread_num, char* path_new, char* path_head) {
-        vis[cur] = true;
+        vis[thread_num][cur] = true;
         //        int len = idsStrStep[cur];
         int len = idsStrIndex[cur + 1] - idsStrIndex[cur];
         memcpy(path_new, &idsStr[idsStrIndex[cur]], len * sizeof(char));
@@ -300,93 +303,94 @@ public:
             // int idv = ids[v];
             if (v == head && depth >= 3) {
                 //memcpy(&ans[depth - 3][n_ans[depth - 3]++ * depth], path_new - depth, depth * sizeof(int));
-                memcpy(&ans[depth - 3][ans_top[depth - 3]], path_head, path_new - path_head);
-                ans_top[depth - 3] += path_new - path_head;
-                n_ans[depth - 3]++;
-                ans[depth - 3][ans_top[depth - 3] - 1] = '\n';
+                memcpy(&ans[depth - 3][thread_num][ans_top[depth - 3][thread_num]], path_head, path_new - path_head);
+                ans_top[depth - 3][thread_num] += path_new - path_head;
+                n_ans[depth - 3][thread_num]++;
+                ans[depth - 3][thread_num][ans_top[depth - 3][thread_num] - 1] = '\n';
             }
-            if (!vis[v] && v > head) {
-                if (depth == 6 && direct_reach[v]) {
+            if (!vis[thread_num][v] && v > head) {
+                if (depth == 6 && direct_reach[thread_num * nodeCnt + v]) {
                     //*path_new++ = ids[v];
                     //memcpy(&ans[4][n_ans[4]++ * 7], path_new - 7, 7 * sizeof(int));
                     //path_new--;
                     int len7 = idsStrIndex[v + 1] - idsStrIndex[v];
                     memcpy(path_new, &idsStr[idsStrIndex[v]], len7 * sizeof(char));
                     path_new += len7;
-                    memcpy(&ans[4][ans_top[4]], path_head, path_new - path_head);
-                    ans_top[4] += path_new - path_head;
-                    n_ans[4]++;
-                    ans[4][ans_top[4] - 1] = '\n';
+                    memcpy(&ans[4][thread_num][ans_top[4][thread_num]], path_head, path_new - path_head);
+                    ans_top[4][thread_num] += path_new - path_head;
+                    n_ans[4][thread_num]++;
+                    ans[4][thread_num][ans_top[4][thread_num] - 1] = '\n';
                     path_new -= len7;
                 }
                 if (depth < 4)
-                    dfs(head, v, depth + 1, path_new, path_head);
+                    dfs(head, v, depth + 1, thread_num, path_new, path_head);
                 if (depth == 4 || depth == 5)
                 {
-                    if (onestep_reach[v])
-                        dfs(head, v, depth + 1, path_new, path_head);
+                    if (onestep_reach[thread_num * nodeCnt + v])
+                        dfs(head, v, depth + 1, thread_num, path_new, path_head);
                 }
             }
         }
-        vis[cur] = false;
+        vis[thread_num][cur] = false;
         path_new -= len;
     }
 
 
-    void start_threaded_solve(int thread_num, int* path_new)
+    void start_threaded_solve(int thread_num, char* path_new)
     {
         const double thread_cntd = (double)thread_cnt;
         const double thread_numd = (double)thread_num;
         const double nodeCntd = (double)nodeCnt;
-        const int nodeMin = nodeCntd * (1.0 - pow((thread_cntd - thread_numd) / thread_cntd, 1.0 / 3.0));
-        const int nodeMax = nodeCntd * (1.0 - pow((thread_cntd - thread_numd - 1.0) / thread_cntd, 1.0 / 3.0));
+        const int nodeMin = nodeCntd * (1.0 - pow((thread_cntd - thread_numd) / thread_cntd, 1.0 / 5.0));
+        const int nodeMax = nodeCntd * (1.0 - pow((thread_cntd - thread_numd - 1.0) / thread_cntd, 1.0 / 5.0));
+        char* path_head = path_new;
+
         for (int i = nodeMin; i < nodeMax; i++)
         {
-            for (int i = 0; i < nodeCnt; i++) {
-                int* p = &invG_arr[i * 50];
-                for (int j = 0; j < invG_arr_num[i]; j++)
+            int* p = &invG_arr[i * 50];
+            for (int j = 0; j < invG_arr_num[i]; j++)
+            {
+                int v = p[j];
+                if (v < i) continue;
+                direct_reach[v + thread_num * nodeCnt] = true;
+                onestep_reach[v + thread_num * nodeCnt] = true;
+                int* pp = &invG_arr[v * 50];
+                for (int k = 0; k < invG_arr_num[v]; k++)
                 {
-                    int v = p[j];
-                    direct_reach[v] = true;
-                    onestep_reach[v] = true;
-                    int* pp = &invG_arr[v * 50];
-                    for (int k = 0; k < invG_arr_num[v]; k++)
+                    int vv = pp[k];
+                    if (vv < i) continue;
+                    onestep_reach[vv + thread_num * nodeCnt] = true;
+                    int* ppp = &invG_arr[vv * 50];
+                    for (int l = 0; l < invG_arr_num[vv]; l++)
                     {
-                        int vv = pp[k];
-                        onestep_reach[vv] = true;
-                        int* ppp = &invG_arr[vv * 50];
-                        for (int l = 0; l < invG_arr_num[vv]; l++)
-                        {
-                            int vvv = ppp[l];
-                            onestep_reach[vvv] = true;
-                        }
+                        int vvv = ppp[l];
+                        if (vvv < i) continue;
+                        onestep_reach[vvv + thread_num * nodeCnt] = true;
                     }
                 }
+            }
 
-                if (G_arr_num[i] > 0) {
-                    dfs(i, i, 1, path_new_char, path_head);
-                }
-                for (int j = 0; j < invG_arr_num[i]; j++)
+            if (G_arr_num[i] > 0) {
+                dfs(i, i, 1, thread_num, path_new, path_head);
+            }
+
+            for (int j = 0; j < invG_arr_num[i]; j++)
+
+            {
+                int v = p[j];
+                direct_reach[v + thread_num * nodeCnt] = false;
+                onestep_reach[v + thread_num * nodeCnt] = false;
+                int* pp = &invG_arr[v * 50];
+                for (int k = 0; k < invG_arr_num[v]; k++)
 
                 {
-                    int v = p[j];
-
-                    direct_reach[v] = false;
-                    onestep_reach[v] = false;
-
-                    int* pp = &invG_arr[v * 50];
-                    for (int k = 0; k < invG_arr_num[v]; k++)
-
+                    int vv = pp[k];
+                    onestep_reach[vv + thread_num * nodeCnt] = false;
+                    int* ppp = &invG_arr[vv * 50];
+                    for (int l = 0; l < invG_arr_num[vv]; l++)
                     {
-                        int vv = pp[k];
-                        onestep_reach[vv] = false;
-                        int* ppp = &invG_arr[vv * 50];
-                        for (int l = 0; l < invG_arr_num[vv]; l++)
-
-                        {
-                            int vvv = ppp[l];
-                            onestep_reach[vvv] = false;
-                        }
+                        int vvv = ppp[l];
+                        onestep_reach[vvv + thread_num * nodeCnt] = false;
                     }
                 }
             }
@@ -396,93 +400,44 @@ public:
     //search from 0...n
     //鐢变簬瑕佹眰id鏈€灏忕殑鍦ㄥ墠锛屽洜姝ゆ悳绱㈢殑鍏ㄨ繃绋嬩腑涓嶈€冭檻姣旇捣鐐筰d鏇村皬鐨勮妭鐐�
     void solve() {
-        ans[0] = new char[3 * 500000 * 40];
-        ans[1] = new char[4 * 500000 * 50];
-        ans[2] = new char[5 * 1000000 * 60];
-        ans[3] = new char[6 * 2000000 * 70];
-        ans[4] = new char[7 * 3000000 * 80];
 
         for (int i = 0; i < thread_cnt; i++)
         {
-            resVect[0][i] = new int[3 * 500000];
-            resVect[1][i] = new int[4 * 500000];
-            resVect[2][i] = new int[5 * 1000000];
-            resVect[3][i] = new int[6 * 2000000];
-            resVect[4][i] = new int[7 * 3000000];
-            resVectCount[0][i] = 0;
-            resVectCount[1][i] = 0;
-            resVectCount[2][i] = 0;
-            resVectCount[3][i] = 0;
-            resVectCount[4][i] = 0;
+            ans[0][i] = new char[3 * 500000 * 40];
+            ans[1][i] = new char[4 * 500000 * 50];
+            ans[2][i] = new char[5 * 1000000 * 60];
+            ans[3][i] = new char[6 * 2000000 * 70];
+            ans[4][i] = new char[7 * 3000000 * 80];
+            ans_top[0][i] = 0;
+            ans_top[1][i] = 0;
+            ans_top[2][i] = 0;
+            ans_top[3][i] = 0;
+            ans_top[4][i] = 0;
+            n_ans[0][i] = 0;
+            n_ans[1][i] = 0;
+            n_ans[2][i] = 0;
+            n_ans[3][i] = 0;
+            n_ans[4][i] = 0;
         }
 
-        vis = vector<bool>(nodeCnt, false);
-        vector<int> path;
-        //        ans_arr.resize(5);
-        uint32_t path_new[7];
-        char* path_new_char = new char[200];
-        char* path_head = path_new_char;
-        direct_reach = new bool[nodeCnt];
-        onestep_reach = new bool[nodeCnt];
-        memset(direct_reach, false, nodeCnt);
-        memset(onestep_reach, false, nodeCnt);
+        vis = vector<vector<bool>>(thread_cnt, vector<bool>(nodeCnt, false));
 
-        for (int i = 0; i < nodeCnt; i++) {
-            int* p = &invG_arr[i * 50];
-            for (int j = 0; j < invG_arr_num[i]; j++)
-                //for (uint32_t& v : invG[i])
-            {
-                int v = p[j];
-                //if(v<i) continue;
-                direct_reach[v] = true;
-                onestep_reach[v] = true;
-                // invvis[v] = true;
-                int* pp = &invG_arr[v * 50];
-                for (int k = 0; k < invG_arr_num[v]; k++)
-                    //for (uint32_t& vv : invG[v])
-                {
-                    int vv = pp[k];
-                    //if(vv<i) continue;
-                    onestep_reach[vv] = true;
-                    int* ppp = &invG_arr[vv * 50];
-                    for (int l = 0; l < invG_arr_num[vv]; l++)
-                        //for (uint32_t& vvv : invG[vv])
-                    {
-                        int vvv = ppp[l];
-                        //if(vvv<i) continue;
-                        onestep_reach[vvv] = true;
-                    }
-                }
-            }
-            //if (!G[i].empty()) {
-            if (G_arr_num[i] > 0) {
-                dfs(i, i, 1, path_new_char, path_head);
-            }
-            for (int j = 0; j < invG_arr_num[i]; j++)
-                //for (uint32_t& v : invG[i])
-            {
-                int v = p[j];
-                //if(v<i) continue;
-                direct_reach[v] = false;
-                onestep_reach[v] = false;
-                // invvis[v] = true;
-                int* pp = &invG_arr[v * 50];
-                for (int k = 0; k < invG_arr_num[v]; k++)
-                    //for (uint32_t& vv : invG[v])
-                {
-                    int vv = pp[k];
-                    //if(vv<i) continue;
-                    onestep_reach[vv] = false;
-                    int* ppp = &invG_arr[vv * 50];
-                    for (int l = 0; l < invG_arr_num[vv]; l++)
-                        //for (uint32_t& vvv : invG[vv])
-                    {
-                        int vvv = ppp[l];
-                        //if(vvv<i) continue;
-                        onestep_reach[vvv] = false;
-                    }
-                }
-            }
+        char* path_new_char = new char[200*thread_cnt];
+        //char* path_head = path_new_char;
+
+        direct_reach = new bool[nodeCnt * thread_cnt];
+        onestep_reach = new bool[nodeCnt * thread_cnt];
+        memset(direct_reach, false, nodeCnt * thread_cnt);
+        memset(onestep_reach, false, nodeCnt * thread_cnt);
+
+        thread th[thread_cnt];
+        for (int i = 0; i < thread_cnt; i++)
+        {
+            th[i] = thread(&Solution::start_threaded_solve, this, i, &path_new_char[i * 200]);
+        }
+        for (int i = 0; i < thread_cnt; i++)
+        {
+            th[i].join();
         }
     }
 
@@ -492,7 +447,8 @@ public:
         //            count += a.size();
         //        }
         for (int i = 0; i < 5; i++) {
-            count += n_ans[i];
+            for (int j = 0; j < thread_cnt; j++)
+                count += n_ans[i][j];
         }
 #ifdef TEST
         printf("Total Loops %d\n", count);
@@ -530,8 +486,9 @@ public:
 
         for (int i = 0; i < 5; i++)
         {
+            for (int j=0;j<thread_cnt;j++)
             //            memcpy(pp, ans[i], ans_top[i]);
-            fwrite(ans[i], 1, ans_top[i], fp);
+                fwrite(ans[i][j], 1, ans_top[i][j], fp);
             //            pp += ans_top[i];
         }
 
